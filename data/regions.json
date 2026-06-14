@@ -1,0 +1,398 @@
+[
+  {
+    "id": "zona_oeste_campo_grande",
+    "region": "Zona Oeste",
+    "bairro": "Campo Grande",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_santa_cruz",
+    "region": "Zona Oeste",
+    "bairro": "Santa Cruz",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_cosmos",
+    "region": "Zona Oeste",
+    "bairro": "Cosmos",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_paciencia",
+    "region": "Zona Oeste",
+    "bairro": "Paciência",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_bangu",
+    "region": "Zona Oeste",
+    "bairro": "Bangu",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_realengo",
+    "region": "Zona Oeste",
+    "bairro": "Realengo",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_guaratiba",
+    "region": "Zona Oeste",
+    "bairro": "Guaratiba",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_sepetiba",
+    "region": "Zona Oeste",
+    "bairro": "Sepetiba",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_inhoaiba",
+    "region": "Zona Oeste",
+    "bairro": "Inhoaíba",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_senador_camara",
+    "region": "Zona Oeste",
+    "bairro": "Senador Camará",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_barra_da_tijuca",
+    "region": "Zona Oeste",
+    "bairro": "Barra da Tijuca",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_recreio",
+    "region": "Zona Oeste",
+    "bairro": "Recreio",
+    "status": "pendente",
+    "updatedAt": "2026-06-13T00:24:16.863Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_jacarepagua",
+    "region": "Zona Oeste",
+    "bairro": "Jacarepaguá",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_oeste_taquara",
+    "region": "Zona Oeste",
+    "bairro": "Taquara",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_meier",
+    "region": "Zona Norte",
+    "bairro": "Méier",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_madureira",
+    "region": "Zona Norte",
+    "bairro": "Madureira",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_iraja",
+    "region": "Zona Norte",
+    "bairro": "Irajá",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_penha",
+    "region": "Zona Norte",
+    "bairro": "Penha",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_tijuca",
+    "region": "Zona Norte",
+    "bairro": "Tijuca",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_bonsucesso",
+    "region": "Zona Norte",
+    "bairro": "Bonsucesso",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_ramos",
+    "region": "Zona Norte",
+    "bairro": "Ramos",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_olaria",
+    "region": "Zona Norte",
+    "bairro": "Olaria",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_vila_isabel",
+    "region": "Zona Norte",
+    "bairro": "Vila Isabel",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_norte_engenho_de_dentro",
+    "region": "Zona Norte",
+    "bairro": "Engenho de Dentro",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_nova_iguacu",
+    "region": "Baixada",
+    "bairro": "Nova Iguaçu",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_duque_de_caxias",
+    "region": "Baixada",
+    "bairro": "Duque de Caxias",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_belford_roxo",
+    "region": "Baixada",
+    "bairro": "Belford Roxo",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_nilopolis",
+    "region": "Baixada",
+    "bairro": "Nilópolis",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_sao_joao_de_meriti",
+    "region": "Baixada",
+    "bairro": "São João de Meriti",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_mesquita",
+    "region": "Baixada",
+    "bairro": "Mesquita",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "baixada_queimados",
+    "region": "Baixada",
+    "bairro": "Queimados",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "centro_centro",
+    "region": "Centro",
+    "bairro": "Centro",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "centro_lapa",
+    "region": "Centro",
+    "bairro": "Lapa",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "centro_catete",
+    "region": "Centro",
+    "bairro": "Catete",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "centro_gloria",
+    "region": "Centro",
+    "bairro": "Glória",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "centro_cidade_nova",
+    "region": "Centro",
+    "bairro": "Cidade Nova",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "centro_estacio",
+    "region": "Centro",
+    "bairro": "Estácio",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_copacabana",
+    "region": "Zona Sul",
+    "bairro": "Copacabana",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_botafogo",
+    "region": "Zona Sul",
+    "bairro": "Botafogo",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_flamengo",
+    "region": "Zona Sul",
+    "bairro": "Flamengo",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_ipanema",
+    "region": "Zona Sul",
+    "bairro": "Ipanema",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_leblon",
+    "region": "Zona Sul",
+    "bairro": "Leblon",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_laranjeiras",
+    "region": "Zona Sul",
+    "bairro": "Laranjeiras",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  },
+  {
+    "id": "zona_sul_gavea",
+    "region": "Zona Sul",
+    "bairro": "Gávea",
+    "status": "pendente",
+    "updatedAt": "2026-06-12T23:38:38.568629Z",
+    "count": 0,
+    "goal": 10
+  }
+]

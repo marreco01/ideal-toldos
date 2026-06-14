@@ -1,0 +1,330 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel de Postagens | Ideal Toldos</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="stylesheet" href="admin.css" />
+<style>
+/* select-bairros-auto */
+#groupRegion{width:100%;padding:14px 16px;border:1px solid #cfe0f7;border-radius:10px;background:#fff;color:#0b234a;font-size:16px}
+#groupRegion:focus{outline:none;border-color:#1d6fff;box-shadow:0 0 0 3px rgba(29,111,255,.15)}
+</style>
+
+<style>
+.logo img,
+.navbar .logo img,
+.site-logo img,
+header img{
+    max-height:90px !important;
+    height:90px !important;
+    width:auto !important;
+    object-fit:contain !important;
+}
+header,
+.navbar{
+    min-height:90px !important;
+}
+</style>
+
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="side-logo" href="/admin.html" aria-label="Ideal Toldos Admin">
+        <img src="assets/logo-copa-2026.png" alt="Ideal Toldos & Coberturas" />
+      </a>
+
+      <nav class="side-nav">
+        <a href="#dashboard" class="nav-link"><span>⌂</span>Dashboard</a>
+        <a href="#grupos" class="nav-link"><span>👥</span>Grupos</a>
+        <a href="#clientes" class="nav-link"><span>🧾</span>Clientes</a>
+        <a href="#postagens" class="nav-link active"><span>➤</span>Postagens</a>
+        <a href="#controle-regiao" class="nav-link"><span>📍</span>Controle de Região</a>
+        <a href="/admin-galeria.html" class="nav-link"><span>🖼️</span>Galeria</a>
+        <a href="#relatorios" class="nav-link"><span>🗺️</span>Relatórios</a>
+        <a href="#cliques" class="nav-link"><span>⌁</span>Cliques</a>
+        <a href="#conversoes" class="nav-link"><span>◎</span>Conversões</a>
+        <a href="#config" class="nav-link"><span>⚙</span>Configurações</a>
+        <button id="logoutBtn" class="nav-link logout"><span>↪</span>Sair</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-head" id="dashboard">
+        <div>
+          <h1>Painel de Postagens</h1>
+          <p>Gerencie seus grupos e crie postagens de forma rápida e profissional.</p>
+        </div>
+
+        <section class="metrics">
+          <article class="metric-card">
+            <div class="metric-icon blue">👥</div>
+            <strong id="campaignTotalGroups">0</strong>
+            <span>Grupos cadastrados</span>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon green">✓</div>
+            <strong id="campaignPostedToday">0</strong>
+            <span>Postados 48h</span>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon purple">⌁</div>
+            <strong id="todayClicks">0</strong>
+            <span>Cliques hoje</span>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon orange">↗</div>
+            <strong id="quoteTotal">0</strong>
+            <span>Conversões</span>
+          </article>
+        </section>
+      </header>
+
+      <section class="workflow" id="postagens">
+        <article class="step-card">
+          <div class="step-title">
+            <b>1</b>
+            <h2>Selecionar grupo</h2>
+          </div>
+
+          <label for="groupSearch">Buscar grupo</label>
+          <div class="search-box">
+            <input id="groupSearch" placeholder="Digite o nome do grupo..." />
+            <span>⌕</span>
+          </div>
+
+          <label for="groupSelect">Selecione um grupo</label>
+          <select id="groupSelect">
+            <option value="">Nenhum grupo cadastrado</option>
+          </select>
+
+          <button id="openGroupBtn" class="outline-full" type="button">Abrir grupo no Facebook ↗</button>
+
+          <div class="status-card" id="selectedStatusCard">
+            <div class="status-dot">✓</div>
+            <div>
+              <small>Status do grupo</small>
+              <strong id="selectedGroupStatus">Nenhum grupo selecionado</strong>
+              <span id="selectedLastPost">Selecione um grupo para começar.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <div class="step-title">
+            <b>2</b>
+            <h2>Imagem da campanha</h2>
+          </div>
+
+          <p class="label-text">Imagem selecionada</p>
+          <div class="image-preview-box">
+            <img id="campaignImagePreview" alt="Prévia da imagem da campanha" />
+            <div id="campaignImageEmpty" class="image-empty">Nenhuma imagem selecionada</div>
+          </div>
+
+          <div class="image-actions">
+            <label class="file-btn" for="campaignImageInput">Alterar imagem</label>
+            <input id="campaignImageInput" type="file" accept="image/*" hidden />
+            <button id="clearCampaignImageBtn" type="button" class="danger-outline">Remover imagem</button>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <div class="step-title">
+            <b>3</b>
+            <h2>Modelo da postagem</h2>
+          </div>
+
+          <textarea id="postTemplate" rows="13">🏠 Proteja e valorize seu imóvel com quem entende do assunto!
+
+✅ Toldos retráteis e fixos
+✅ Coberturas de policarbonato
+✅ ACM e letreiros
+✅ Instalação profissional
+✅ Materiais de alta qualidade
+
+📸 Conheça nossos serviços e solicite seu orçamento:
+
+{LINK}</textarea>
+
+          <small class="help-text">O link do grupo será inserido automaticamente no lugar de <b>{LINK}</b>.</small>
+        </article>
+      </section>
+
+      <section class="post-builder">
+        <div class="step-title small">
+          <b>4</b>
+          <h2>Gerar postagem para o grupo selecionado</h2>
+        </div>
+
+        <div class="builder-row">
+          <input id="trackLink" readonly placeholder="Link rastreável do grupo selecionado" />
+          <button id="generatePostBtn" type="button" class="primary-btn">✒ Gerar postagem</button>
+          <button id="copyPostBtn" type="button" class="secondary-btn">▣ Copiar postagem</button>
+          <button id="copyTrackLinkBtn" type="button" class="secondary-btn">🔗 Copiar link</button>
+          <button id="markPostedBtn" type="button" class="success-btn">✅ Marcar como postado</button>
+        </div>
+
+        <textarea id="generatedPost" class="generated-post" rows="6" readonly placeholder="A postagem pronta aparecerá aqui."></textarea>
+
+        <div class="info-alert">
+          ⓘ A postagem só será marcada como publicada quando você clicar em <b>Marcar como postado</b>. O status vale por 48 horas.
+        </div>
+      </section>
+
+      <section class="panel-block" id="grupos">
+        <div class="block-head">
+          <div>
+            <h2>Gerenciar grupos</h2>
+            <p>Cadastre, edite e organize seus grupos. Links repetidos são bloqueados automaticamente.</p>
+          </div>
+          <button id="toggleGroupManager" type="button" class="secondary-btn">Mostrar cadastro</button>
+        </div>
+
+        <div id="groupManager" class="group-manager">
+          <form id="groupForm" class="group-form">
+            <h3 id="groupFormTitle">Cadastrar grupo</h3>
+            <input id="editingGroupId" type="hidden" />
+            <input id="groupName" placeholder="Nome do grupo" />
+            <input id="groupUrl" placeholder="https://facebook.com/groups/..." />
+            <select id="groupRegion" name="region" class="input full">
+  <option value="">Selecione o bairro cadastrado</option>
+</select>
+            <input id="groupMembers" placeholder="Quantidade de membros (opcional)" />
+            <button id="saveGroupBtn" type="submit" class="primary-btn">Salvar grupo</button>
+            <button id="cancelEditGroupBtn" type="button" class="secondary-btn" style="display:none">Cancelar edição</button>
+          </form>
+
+          <div class="bulk-box">
+            <h3>Importar grupos em lote</h3>
+            <textarea id="bulkGroups" rows="7" placeholder="Compra e Venda Campo Grande | https://facebook.com/groups/123 | Campo Grande&#10;Moradores de Cosmos - https://facebook.com/groups/456 - Cosmos"></textarea>
+            <button id="importGroupsBtn" type="button" class="primary-btn">Importar grupos</button>
+            <small>Formatos aceitos: Nome | Link | Região ou Nome - Link - Região.</small>
+          </div>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div class="table-head">
+          <h2>Grupos cadastrados</h2>
+          <div class="table-summary">
+            <span id="tableInfo">Mostrando 0 grupos</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Grupo</th>
+                <th>Região</th>
+                <th>Membros</th>
+                <th>Categoria</th>
+                <th>Cliques hoje</th>
+                <th>Última postagem</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="groupsTableBody">
+              <tr><td colspan="8" class="empty-row">Nenhum grupo cadastrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      
+      <section class="table-card" id="clientes">
+        <div class="table-head">
+          <h2>Clientes cadastrados</h2>
+          <div class="table-summary">
+            <span id="clientsInfo">Mostrando 0 clientes</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Telefone</th>
+                <th>Bairro</th>
+                <th>Serviço</th>
+                <th>Data</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientsTableBody">
+              <tr><td colspan="6" class="empty-row">Nenhum cliente cadastrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+<section class="panel-block region-control" id="controle-regiao">
+        <div class="block-head">
+          <div>
+            <h2>Controle de Região</h2>
+            <p>Controle automático por região. Cada grupo salvo no bairro soma 1 ponto. Com 10/10 fica verde. Quando todas as regiões baterem a meta, o ciclo volta para vermelho automaticamente.</p>
+          </div>
+          <div class="region-actions">
+            <button id="markAllPendingBtn" type="button" class="danger-outline">Zerar ciclo</button>
+            <button id="markAllActiveBtn" type="button" class="success-btn">Marcar ciclo completo</button>
+          </div>
+        </div>
+
+        <div class="region-summary">
+          <article><strong id="regionTotal">0</strong><span>Bairros no cronograma</span></article>
+          <article class="active"><strong id="regionActive">0</strong><span>Em divulgação</span></article>
+          <article class="pending"><strong id="regionPending">0</strong><span>Pendentes</span></article>
+        </div>
+
+        <div class="region-legend">
+          <span><b class="legend-dot pending-dot"></b> Vermelho: abaixo de 10 grupos salvos</span>
+          <span><b class="legend-dot active-dot"></b> Verde: meta 10/10 concluída</span>
+        </div>
+
+        <div id="regionGrid" class="region-grid">
+          <p class="empty-row">Carregando controle de região...</p>
+        </div>
+      </section>
+
+      <section class="reports-grid" id="relatorios">
+        <article class="report-card">
+          <h2>Top origens</h2>
+          <div id="sourceList" class="list"></div>
+        </article>
+        <article class="report-card" id="cliques">
+          <h2>Controle de IP</h2>
+          <div id="ipList" class="ip-list"></div>
+        </article>
+        <article class="report-card">
+          <h2>Dispositivos</h2>
+          <div id="deviceList" class="list"></div>
+        </article>
+        <article class="report-card" id="conversoes">
+          <h2>Eventos</h2>
+          <div id="eventList" class="list"></div>
+        </article>
+      </section>
+    
+<section class="panel-card" id="config">
+<h2>Configurações</h2>
+<p><strong>Última atualização:</strong> <span id="lastUpdate"></span> (auto 60s)</p>
+<p><strong>Meu IP:</strong> <span id="myIp">Carregando...</span></p>
+<div class="builder-row compact-row">
+  <button id="ignoreMyIpBtn" type="button" class="secondary-btn">Não contar meu IP</button>
+  <button id="unignoreMyIpBtn" type="button" class="danger-outline">Voltar a contar meu IP</button>
+</div>
+<p id="ipIgnoreStatus" class="help-text">Visitas feitas com o admin logado já não entram na contagem.</p>
+</section>
+
+</main>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>

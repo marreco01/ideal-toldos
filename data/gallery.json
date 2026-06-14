@@ -1,0 +1,146 @@
+[
+  {
+    "id": "seed-toldo-cortina-1",
+    "category": "toldo-cortina",
+    "categoryLabel": "Toldo Cortina",
+    "title": "Toldo Cortina 1",
+    "src": "/assets/obra-1.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-toldo-cortina-2",
+    "category": "toldo-cortina",
+    "categoryLabel": "Toldo Cortina",
+    "title": "Toldo Cortina 2",
+    "src": "/assets/obra-2.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-toldo-cortina-3",
+    "category": "toldo-cortina",
+    "categoryLabel": "Toldo Cortina",
+    "title": "Toldo Cortina 3",
+    "src": "/assets/obra-3.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-coberturas-1",
+    "category": "coberturas",
+    "categoryLabel": "Coberturas",
+    "title": "Cobertura 1",
+    "src": "/assets/obra-4.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-coberturas-2",
+    "category": "coberturas",
+    "categoryLabel": "Coberturas",
+    "title": "Cobertura 2",
+    "src": "/assets/obra-5.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-coberturas-3",
+    "category": "coberturas",
+    "categoryLabel": "Coberturas",
+    "title": "Cobertura 3",
+    "src": "/assets/obra-6.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-1",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 1",
+    "src": "/assets/letreiro-1.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-2",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 2",
+    "src": "/assets/letreiro-2.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-3",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 3",
+    "src": "/assets/letreiro-3.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-4",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 4",
+    "src": "/assets/letreiro-4.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-5",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 5",
+    "src": "/assets/letreiro-5.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-6",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 6",
+    "src": "/assets/letreiro-6.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-7",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 7",
+    "src": "/assets/letreiro-7.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-8",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 8",
+    "src": "/assets/letreiro-8.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-9",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 9",
+    "src": "/assets/letreiro-9.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-10",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 10",
+    "src": "/assets/letreiro-10.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-11",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 11",
+    "src": "/assets/letreiro-11.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  },
+  {
+    "id": "seed-letreiros-12",
+    "category": "letreiros",
+    "categoryLabel": "Letreiros",
+    "title": "Letreiro 12",
+    "src": "/assets/letreiro-12.jpg",
+    "createdAt": "2026-06-13T00:00:00.000Z"
+  }
+]

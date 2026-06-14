@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Galeria | Admin Ideal Toldos</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="stylesheet" href="admin.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="side-logo" href="/admin.html" aria-label="Ideal Toldos Admin">
+        <img src="assets/logo-copa-2026.png" alt="Ideal Toldos & Coberturas" />
+      </a>
+      <nav class="side-nav">
+        <a href="/admin.html#dashboard" class="nav-link"><span>⌂</span>Dashboard</a>
+        <a href="/admin.html#grupos" class="nav-link"><span>👥</span>Grupos</a>
+        <a href="/admin.html#clientes" class="nav-link"><span>🧾</span>Clientes</a>
+        <a href="/admin.html#postagens" class="nav-link"><span>➤</span>Postagens</a>
+        <a href="/admin.html#controle-regiao" class="nav-link"><span>📍</span>Controle de Região</a>
+        <a href="/admin-galeria.html" class="nav-link active"><span>🖼️</span>Galeria</a>
+        <a href="/admin.html#relatorios" class="nav-link"><span>🗺️</span>Relatórios</a>
+        <a href="/admin.html#cliques" class="nav-link"><span>⌁</span>Cliques</a>
+        <a href="/admin.html#conversoes" class="nav-link"><span>◎</span>Conversões</a>
+        <a href="/admin.html#config" class="nav-link"><span>⚙</span>Configurações</a>
+        <button id="logoutBtn" class="nav-link logout"><span>↪</span>Sair</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-head">
+        <div>
+          <h1>Galeria do Site</h1>
+          <p>Envie fotos por categoria. Elas aparecem automaticamente nas páginas da galeria.</p>
+        </div>
+        <a class="secondary-btn admin-open-gallery" href="/galeria.html">Ver galeria no site</a>
+      </header>
+
+      <section class="panel-block gallery-admin-card" id="galeria-admin">
+        <div class="block-head">
+          <div>
+            <h2>Adicionar fotos</h2>
+            <p>Escolha a categoria, selecione as imagens e clique em enviar.</p>
+          </div>
+        </div>
+
+        <form id="galleryUploadForm" class="gallery-upload-form">
+          <div class="gallery-upload-grid">
+            <label>Categoria
+              <select id="galleryCategory" required>
+                <option value="toldo-cortina">Toldo Cortina</option>
+                <option value="toldo-capota">Toldo Capota</option>
+                <option value="coberturas">Coberturas</option>
+                <option value="policarbonato">Policarbonato</option>
+                <option value="letreiros">Letreiros</option>
+                <option value="drywall">Drywall</option>
+                <option value="letras">Letras</option>
+              </select>
+            </label>
+            <label>Título da foto
+              <input id="galleryTitle" placeholder="Ex: Toldo instalado em Campo Grande" />
+            </label>
+            <label>Fotos
+              <input id="galleryFiles" type="file" accept="image/png,image/jpeg,image/jpg,image/webp" multiple required />
+            </label>
+          </div>
+          <div class="builder-row compact-row">
+            <button class="primary-btn" type="submit">Enviar fotos</button>
+            <button id="reloadGalleryBtn" class="secondary-btn" type="button">Atualizar lista</button>
+          </div>
+          <p id="galleryStatus" class="help-text"></p>
+        </form>
+
+        <div class="table-scroll gallery-list-wrap">
+          <table>
+            <thead>
+              <tr><th>Foto</th><th>Categoria</th><th>Título</th><th>Data</th><th>Ações</th></tr>
+            </thead>
+            <tbody id="galleryTableBody"><tr><td colspan="5" class="empty-row">Nenhuma foto cadastrada.</td></tr></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+  <script src="admin-gallery.js"></script>
+</body>
+</html>

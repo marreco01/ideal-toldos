@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Login Admin | Ideal Toldos</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="stylesheet" href="admin.css" />
+
+<style>
+.logo img,
+.navbar .logo img,
+.site-logo img,
+header img{
+    max-height:90px !important;
+    height:90px !important;
+    width:auto !important;
+    object-fit:contain !important;
+}
+header,
+.navbar{
+    min-height:90px !important;
+}
+</style>
+
+</head>
+<body class="login-body">
+  <main class="login-card">
+    <img src="assets/logo-copa-2026.png" alt="Ideal Toldos" />
+    <h1>Área Administrativa</h1>
+    <p>Acesso restrito da Ideal Toldos.</p>
+    <form id="loginForm" autocomplete="off">
+      <label>Usuário</label>
+      <input id="user" name="admin_user_blank" autocomplete="off" placeholder="Usuário" value="" required />
+      <label>Senha</label>
+      <input id="password" name="admin_pass_blank" type="password" autocomplete="new-password" placeholder="Senha" value="" required />
+      <button type="submit">Entrar</button>
+      <span id="loginMsg"></span>
+    </form>
+    <a href="/">Voltar para o site</a>
+  </main>
+  <script>
+    window.addEventListener('DOMContentLoaded', () => {
+      const userInput = document.getElementById('user');
+      const passInput = document.getElementById('password');
+      if (userInput) userInput.value = '';
+      if (passInput) passInput.value = '';
+    });
+
+    document.getElementById('loginForm').addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const msg = document.getElementById('loginMsg');
+      msg.textContent = 'Entrando...';
+      const res = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user: user.value.trim(), password: password.value })
+      });
+      if (res.ok) window.location.href = '/admin.html';
+      else msg.textContent = 'Usuário ou senha inválidos.';
+    });
+  </script>
+</body>
+</html>
