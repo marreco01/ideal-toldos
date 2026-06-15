@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galeria - Letreiros</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f3f7fc}
+.top{background:#0b3d91;color:#fff;padding:18px 24px;display:flex;gap:18px;align-items:center}
+.top a{background:#fff;color:#0b3d91;padding:10px 14px;border-radius:10px;text-decoration:none;font-weight:700}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;padding:24px}
+.grid img{width:100%;height:240px;object-fit:cover;border-radius:14px}
+</style>
+</head>
+<body>
+<header class="top"><a href="index.html">← Voltar</a><h1>Letreiros</h1></header>
+<div class="grid" id="gallery"></div>
+<script>
+const fotos=['assets/galeria/letreiros/21c234065ac24f909a8c14d1470e25c8.jpg',
+'assets/galeria/letreiros/3100d97b68ec46a1a608a8a2cf8c9de5.jpg',
+'assets/galeria/letreiros/313514d599a14e3d90dfe8c44366e82d.jpg',
+'assets/galeria/letreiros/36fd0e74ecc2425891c4ab8e1ef77bd7.jpg',
+'assets/galeria/letreiros/50645d42b3844fc9911301d600e67bf4.jpg',
+'assets/galeria/letreiros/70debcd9e9e443fc8c8076c1063ed033.jpg',
+'assets/galeria/letreiros/8c3179f419de46aca08683e2da839aed.jpg',
+'assets/galeria/letreiros/8e477bfb520e4203be651233a246ed0f.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0005.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0006.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0007.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0008.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0009.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0010.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0011.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0012.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0013.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0014.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0015.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0016.jpg',
+'assets/galeria/letreiros/IMG-20241220-WA0017.jpg',
+'assets/galeria/letreiros/IMG_20260228_144319633.jpg',
+'assets/galeria/letreiros/IMG_20260303_174046674.jpg',
+'assets/galeria/letreiros/IMG_20260305_041240530.jpg',
+'assets/galeria/letreiros/IMG_20260309_194641441_HDR.jpg',
+'assets/galeria/letreiros/IMG_20260310_150948333.jpg',
+'assets/galeria/letreiros/IMG_20260312_140554755.jpg',
+'assets/galeria/letreiros/b3c77d5c5c8743a18e52530bf8e49fd5.jpg',
+'assets/galeria/letreiros/b44fc1252916451d96b0d3ffaff70ced.jpg',
+'assets/galeria/letreiros/b56dbd2a376b47c08eaf9c15cc1b2625.jpg',
+'assets/galeria/letreiros/b6177499c66443d5bd7fce5f04a13cdf.jpg',
+'assets/galeria/letreiros/c2dde984174246e584cf3c80c8a7a4bb.jpg',
+'assets/galeria/letreiros/c9d55e624343407096a8d405ab2a12c9.jpg',
+'assets/galeria/letreiros/cf85367dbfbc4b648ca0c995598f5b11.jpg',
+'assets/galeria/letreiros/d52ca369a5664e4882c0d2a6b25b441a.jpg',
+'assets/galeria/letreiros/fca190b2cbf14c69b7d900e658722dce.jpg'];
+document.getElementById('gallery').innerHTML=
+fotos.map(f=>`<a href="${f}" target="_blank"><img loading="lazy" decoding="async" src="${f}"></a>`).join('');
+</script>
+</body>
+</html>

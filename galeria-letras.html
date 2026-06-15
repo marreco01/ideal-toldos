@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galeria - Letras</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f3f7fc;color:#071f43}
+.top{background:#0b3d91;color:white;padding:18px 24px;display:flex;align-items:center;gap:18px}
+.top a{background:white;color:#0b3d91;text-decoration:none;font-weight:900;padding:10px 14px;border-radius:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;padding:24px}
+.grid img{width:100%;height:240px;object-fit:cover;border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.16)}
+.empty{padding:24px;font-weight:900}
+</style></head><body>
+<header class="top"><a href="index.html">← Voltar ao site</a><h1>Letras</h1></header>
+<main><div id="galleryGrid" class="grid"></div></main>
+<script>
+function loadImageOk(src){
+  return new Promise(resolve=>{
+    const img=new Image();
+    img.onload=()=>resolve(true);
+    img.onerror=()=>resolve(false);
+    img.src=src+(src.includes('?')?'&':'?')+'v='+Date.now();
+  });
+}
+async function carregarGaleria(){
+  const grid=document.getElementById('galleryGrid');
+  grid.innerHTML='<div class="empty">Carregando fotos...</div>';
+  try{
+    const r=await fetch('/api/gallery?category=letras',{cache:'no-store'});
+    const d=await r.json();
+    const photos=d.photos||[];
+    const valid=[];
+    for(const p of photos){
+      const u=p.src||p.url;
+      if(!u) continue;
+      if(await loadImageOk(u)) valid.push(p);
+    }
+    grid.innerHTML=valid.length?valid.map(p=>{const u=p.src||p.url;return `<a href="${u}" target="_blank" class="photo-link"><img src="${u}" alt="Letras" loading="lazy" decoding="async"></a>`}).join(''):'<div class="empty">Nenhuma foto cadastrada nessa categoria.</div>';
+  }catch(e){
+    grid.innerHTML='<div class="empty">Erro ao carregar fotos.</div>';
+  }
+}
+carregarGaleria();
+</script>  <script src="gallery-performance.js"></script>
+</body></html>

@@ -1,0 +1,14 @@
+{
+  "name": "ideal-toldos-html-puro",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "build": "node -e \"console.log('Site estático pronto para Railway')\"",
+    "start": "node server.js"
+  },
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=18"
+  }
+}

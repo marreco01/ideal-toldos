@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Painel de Postagens | Ideal Toldos</title>
+  <link rel="icon" type="image/png" href="assets/favicon.png" />
+  <link rel="stylesheet" href="admin.css" />
+<style>
+/* select-bairros-auto */
+#groupRegion{width:100%;padding:14px 16px;border:1px solid #cfe0f7;border-radius:10px;background:#fff;color:#0b234a;font-size:16px}
+#groupRegion:focus{outline:none;border-color:#1d6fff;box-shadow:0 0 0 3px rgba(29,111,255,.15)}
+</style>
+
+<style>
+.logo img,
+.navbar .logo img,
+.site-logo img,
+header img{
+    max-height:90px !important;
+    height:90px !important;
+    width:auto !important;
+    object-fit:contain !important;
+}
+header,
+.navbar{
+    min-height:90px !important;
+}
+</style>
+
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <a class="side-logo" href="/admin.html" aria-label="Ideal Toldos Admin">
+        <img src="assets/logo-copa-2026.png" alt="Ideal Toldos & Coberturas" / loading="lazy" decoding="async">
+      </a>
+
+      <nav class="side-nav">
+        <a href="#dashboard" class="nav-link"><span>⌂</span>Dashboard</a>
+        <a href="#grupos" class="nav-link"><span>👥</span>Grupos</a>
+        <a href="#cacador-links" class="nav-link"><span>🔎</span>Caçador de Links</a>
+        <a href="#clientes" class="nav-link"><span>🧾</span>Clientes</a>
+        <a href="#postagens" class="nav-link active"><span>➤</span>Postagens</a>
+        <a href="#controle-regiao" class="nav-link"><span>📍</span>Controle de Região</a>
+        <a href="#galeria-admin" class="nav-link"><span>🖼️</span>Galeria</a>
+        <a href="#relatorios" class="nav-link"><span>🗺️</span>Relatórios</a>
+        <a href="#cliques" class="nav-link"><span>⌁</span>Cliques</a>
+        <a href="#conversoes" class="nav-link"><span>◎</span>Conversões</a>
+        <a href="#config" class="nav-link"><span>⚙</span>Configurações</a>
+        <button id="logoutBtn" class="nav-link logout"><span>↪</span>Sair</button>
+      </nav>
+    </aside>
+
+    <main class="main">
+      <header class="page-head" id="dashboard">
+        <div>
+          <h1>Painel de Postagens</h1>
+          <p>Gerencie seus grupos e crie postagens de forma rápida e profissional.</p>
+        </div>
+
+        <section class="metrics">
+          <article class="metric-card">
+            <div class="metric-icon blue">👥</div>
+            <strong id="campaignTotalGroups">0</strong>
+            <span>Grupos cadastrados</span>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon green">✓</div>
+            <strong id="campaignPostedToday">0</strong>
+            <span>Postados 48h</span>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon purple">⌁</div>
+            <strong id="todayClicks">0</strong>
+            <span>Cliques hoje</span>
+          </article>
+          <article class="metric-card">
+            <div class="metric-icon orange">↗</div>
+            <strong id="quoteTotal">0</strong>
+            <span>Conversões</span>
+          </article>
+        </section>
+      </header>
+
+      <section class="workflow" id="postagens">
+        <article class="step-card">
+          <div class="step-title">
+            <b>1</b>
+            <h2>Selecionar grupo</h2>
+          </div>
+
+          <label for="groupSearch">Buscar grupo</label>
+          <div class="search-box">
+            <input id="groupSearch" placeholder="Digite o nome do grupo..." />
+            <span>⌕</span>
+          </div>
+
+          <label for="groupSelect">Selecione um grupo</label>
+          <select id="groupSelect">
+            <option value="">Nenhum grupo cadastrado</option>
+          </select>
+
+          <button id="openGroupBtn" class="outline-full" type="button">Abrir grupo no Facebook ↗</button>
+
+          <div class="status-card" id="selectedStatusCard">
+            <div class="status-dot">✓</div>
+            <div>
+              <small>Status do grupo</small>
+              <strong id="selectedGroupStatus">Nenhum grupo selecionado</strong>
+              <span id="selectedLastPost">Selecione um grupo para começar.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <div class="step-title">
+            <b>2</b>
+            <h2>Imagem da campanha</h2>
+          </div>
+
+          <p class="label-text">Imagem selecionada</p>
+          <div class="image-preview-box">
+            <img id="campaignImagePreview" alt="Prévia da imagem da campanha" / loading="lazy" decoding="async">
+            <div id="campaignImageEmpty" class="image-empty">Nenhuma imagem selecionada</div>
+          </div>
+
+          <div class="image-actions">
+            <label class="file-btn" for="campaignImageInput">Alterar imagem</label>
+            <input id="campaignImageInput" type="file" accept="image/*" hidden />
+            <button id="clearCampaignImageBtn" type="button" class="danger-outline">Remover imagem</button>
+          </div>
+        </article>
+
+        <article class="step-card">
+          <div class="step-title">
+            <b>3</b>
+            <h2>Modelo da postagem</h2>
+          </div>
+
+          <textarea id="postTemplate" rows="13">🏠 Proteja e valorize seu imóvel com quem entende do assunto!
+
+✅ Toldos retráteis e fixos
+✅ Coberturas de policarbonato
+✅ ACM e letreiros
+✅ Instalação profissional
+✅ Materiais de alta qualidade
+
+📸 Conheça nossos serviços e solicite seu orçamento:
+
+{LINK}</textarea>
+
+          <small class="help-text">O link do grupo será inserido automaticamente no lugar de <b>{LINK}</b>.</small>
+        </article>
+      </section>
+
+      <section class="post-builder">
+        <div class="step-title small">
+          <b>4</b>
+          <h2>Gerar postagem para o grupo selecionado</h2>
+        </div>
+
+        <div class="builder-row">
+          <input id="trackLink" readonly placeholder="Link rastreável do grupo selecionado" />
+          <button id="generatePostBtn" type="button" class="primary-btn">✒ Gerar postagem</button>
+          <button id="copyPostBtn" type="button" class="secondary-btn">▣ Copiar postagem</button>
+          <button id="copyTrackLinkBtn" type="button" class="secondary-btn">✅ Selecionar</button>
+          <button id="markPostedBtn" type="button" class="success-btn">✅ Marcar como postado</button>
+        </div>
+
+        <textarea id="generatedPost" class="generated-post" rows="6" readonly placeholder="A postagem pronta aparecerá aqui."></textarea>
+
+        <div class="info-alert">
+          ⓘ A postagem só será marcada como publicada quando você clicar em <b>Marcar como postado</b>. O status vale por 48 horas.
+        </div>
+      </section>
+
+      <section class="panel-block" id="grupos">
+        <div class="block-head">
+          <div>
+            <h2>Gerenciar grupos</h2>
+            <p>Cadastre, edite e organize seus grupos. Links repetidos são bloqueados automaticamente.</p>
+          </div>
+          <button id="toggleGroupManager" type="button" class="secondary-btn">Mostrar cadastro</button>
+        </div>
+
+        <div id="groupManager" class="group-manager">
+          <form id="groupForm" class="group-form">
+            <h3 id="groupFormTitle">Cadastrar grupo</h3>
+            <input id="editingGroupId" type="hidden" />
+            <input id="groupName" placeholder="Nome do grupo" />
+            <input id="groupUrl" placeholder="https://facebook.com/groups/..." />
+            <select id="groupRegion" name="region" class="input full">
+  <option value="">Selecione o bairro cadastrado</option>
+</select>
+            <input id="groupMembers" placeholder="Quantidade de membros (opcional)" />
+            <button id="saveGroupBtn" type="submit" class="primary-btn">Salvar grupo</button>
+            <button id="cancelEditGroupBtn" type="button" class="secondary-btn" style="display:none">Cancelar edição</button>
+          </form>
+
+          <div class="bulk-box">
+            <h3>Importar grupos em lote</h3>
+            <textarea id="bulkGroups" rows="7" placeholder="Compra e Venda Campo Grande | https://facebook.com/groups/123 | Campo Grande&#10;Moradores de Cosmos - https://facebook.com/groups/456 - Cosmos"></textarea>
+            <button id="importGroupsBtn" type="button" class="primary-btn">Importar grupos</button>
+            <small>Formatos aceitos: Nome | Link | Região ou Nome - Link - Região.</small>
+          </div>
+        </div>
+      </section>
+
+
+
+      <section class="panel-block" id="cacador-links">
+        <div class="block-head">
+          <div>
+            <h2>Robô Caçador de Links do Facebook</h2>
+            <p>Busque links públicos de grupos por bairro ou nicho. Os repetidos são bloqueados ao salvar.</p>
+          </div>
+          <span class="pill"><strong id="scraperFound">0</strong> encontrados</span>
+        </div>
+
+        <div class="group-form hunter-form">
+          <input id="scraperQuery" placeholder="Ex.: Paciência RJ, Campo Grande RJ, Compra e Venda RJ" />
+          <button id="searchGroupsBtn" type="button" class="primary-btn">🔎 Buscar links</button>
+          <button id="importScraperBtn" type="button" class="success-btn">✅ Salvar selecionados</button>
+        </div>
+
+        <p id="scraperStatus" class="help-text">Digite uma busca e clique em buscar.</p>
+        <div id="scraperResults" class="scraper-results">
+          <p class="empty-scraper">Nenhum resultado carregado.</p>
+        </div>
+      </section>
+
+      <section class="table-card">
+        <div class="table-head">
+          <h2>Grupos cadastrados</h2>
+          <div class="table-summary">
+            <span id="tableInfo">Mostrando 0 grupos</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Grupo</th>
+                <th>Região</th>
+                <th>Membros</th>
+                <th>Categoria</th>
+                <th>Cliques hoje</th>
+                <th>Última postagem</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="groupsTableBody">
+              <tr><td colspan="8" class="empty-row">Nenhum grupo cadastrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+
+      
+      <section class="table-card" id="clientes">
+        <div class="table-head">
+          <h2>Clientes cadastrados</h2>
+          <div class="table-summary">
+            <span id="clientsInfo">Mostrando 0 clientes</span>
+          </div>
+        </div>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Cliente</th>
+                <th>Telefone</th>
+                <th>Bairro</th>
+                <th>Serviço</th>
+                <th>Data</th>
+                <th>Ações</th>
+              </tr>
+            </thead>
+            <tbody id="clientsTableBody">
+              <tr><td colspan="6" class="empty-row">Nenhum cliente cadastrado.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+<section class="panel-block region-control" id="controle-regiao">
+        <div class="block-head">
+          <div>
+            <h2>Controle de Região</h2>
+            <p>Controle automático por região. Cada grupo salvo no bairro soma 1 ponto. Com 10/10 fica verde. Quando todas as regiões baterem a meta, o ciclo volta para vermelho automaticamente.</p>
+          </div>
+          <div class="region-actions">
+            <button id="markAllPendingBtn" type="button" class="danger-outline">Zerar ciclo</button>
+            <button id="markAllActiveBtn" type="button" class="success-btn">Marcar ciclo completo</button>
+          </div>
+        </div>
+
+        <div class="region-summary">
+          <article><strong id="regionTotal">0</strong><span>Bairros no cronograma</span></article>
+          <article class="active"><strong id="regionActive">0</strong><span>Em divulgação</span></article>
+          <article class="pending"><strong id="regionPending">0</strong><span>Pendentes</span></article>
+        </div>
+
+        <div class="region-legend">
+          <span><b class="legend-dot pending-dot"></b> Vermelho: abaixo de 10 grupos salvos</span>
+          <span><b class="legend-dot active-dot"></b> Verde: meta 10/10 concluída</span>
+        </div>
+
+        <div class="rj-map-panel">
+<div class="rj-map-header">🗺️ Mapa RJ Interativo</div>
+<div class="rj-zones">
+<button class="zone-btn">Zona Oeste</button>
+<button class="zone-btn">Zona Norte</button>
+<button class="zone-btn">Zona Sul</button>
+<button class="zone-btn">Centro</button>
+<button class="zone-btn">Baixada</button>
+<button class="zone-btn">Niterói/SG</button>
+</div>
+<div class="bairro-selector">
+<label><input type="checkbox"> Campo Grande</label>
+<label><input type="checkbox"> Cosmos</label>
+<label><input type="checkbox"> Paciência</label>
+<label><input type="checkbox"> Santa Cruz</label>
+<label><input type="checkbox"> Sepetiba</label>
+<label><input type="checkbox"> Guaratiba</label>
+<label><input type="checkbox"> Bangu</label>
+<label><input type="checkbox"> Realengo</label>
+</div>
+</div>
+<div id="regionGrid" class="region-grid"></div>
+      </section>
+
+      <section class="reports-grid" id="relatorios">
+        <article class="report-card report-wide" id="relatorio-mensal">
+          <div class="report-title-row">
+            <div>
+              <h2>Relatório de Cliques do Mês</h2>
+              <p class="help-text">Os cliques ficam armazenados no servidor em data/clicks.json e o mês atual é carregado automaticamente.</p>
+            </div>
+            <strong id="monthLabel" class="pill">Mês atual</strong>
+          </div>
+          <div class="monthly-summary" id="monthSummary">
+            <article><strong>0</strong><span>Cliques no mês</span></article>
+            <article><strong>0</strong><span>IPs únicos</span></article>
+            <article><strong>0</strong><span>WhatsApp</span></article>
+            <article><strong>0</strong><span>Orçamentos</span></article>
+          </div>
+          <div class="monthly-grid">
+            <div>
+              <h3>Dias do mês</h3>
+              <div id="monthDailyList" class="list compact-list"></div>
+            </div>
+            <div>
+              <h3>Origem dos cliques</h3>
+              <div id="monthSourceList" class="list compact-list"></div>
+            </div>
+            <div>
+              <h3>IPs do mês</h3>
+              <div id="monthIpList" class="ip-list compact-list"></div>
+            </div>
+          </div>
+        </article>
+        <article class="report-card">
+          <h2>Top origens</h2>
+          <div id="sourceList" class="list"></div>
+        </article>
+        <article class="report-card" id="cliques">
+          <h2>Controle de IP</h2>
+          <div id="ipList" class="ip-list"></div>
+        </article>
+        <article class="report-card">
+          <h2>Dispositivos</h2>
+          <div id="deviceList" class="list"></div>
+        </article>
+        <article class="report-card" id="conversoes">
+          <h2>Eventos</h2>
+          <div id="eventList" class="list"></div>
+        </article>
+      </section>
+    
+
+<section class="panel-card" id="galeria-admin">
+  <h2>Galeria</h2>
+  <p>Área interna para enviar e gerenciar fotos. As fotos continuam salvas no Volume.</p>
+  <iframe src="/admin-galeria.html" title="Galeria Admin" style="width:100%;height:760px;border:0;border-radius:16px;background:#fff"></iframe>
+</section>
+
+<section class="panel-card" id="config">
+<h2>Configurações</h2>
+<p><strong>Última atualização:</strong> <span id="lastUpdate"></span> (auto 60s)</p>
+<p><strong>Meu IP:</strong> <span id="myIp">Carregando...</span></p>
+<div class="builder-row compact-row">
+  <button id="ignoreMyIpBtn" type="button" class="secondary-btn">Não contar meu IP</button>
+  <button id="unignoreMyIpBtn" type="button" class="danger-outline">Voltar a contar meu IP</button>
+</div>
+<p id="ipIgnoreStatus" class="help-text">Visitas feitas com o admin logado já não entram na contagem.</p>
+</section>
+
+</main>
+  </div>
+
+  <script src="admin.js?v=20260614-fix-cacador"></script>
+
+<script id="cacador-links-fix">
+(function(){
+  let scraperResultsFix = [];
+  function $(id){ return document.getElementById(id); }
+  function safe(text){ return String(text ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+  function normUrl(url){
+    let u = String(url || '').trim();
+    if (!u) return '';
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u.replace(/^\/+/, '');
+    return u.replace(/\?.*$/, '').replace(/#.*$/, '').replace(/\/$/, '');
+  }
+  function renderResults(){
+    const box = $('scraperResults');
+    const found = $('scraperFound');
+    if (found) found.textContent = scraperResultsFix.length;
+    if (!box) return;
+    if (!scraperResultsFix.length){
+      box.innerHTML = '<p class="empty-scraper">Nenhum resultado carregado.</p>';
+      return;
+    }
+    box.innerHTML = scraperResultsFix.map((g,i)=>`<div class="scraper-item">
+      <label><input type="checkbox" class="scraper-check-fix" data-index="${i}" checked> <strong>${safe(g.name || 'Grupo Facebook')}</strong></label>
+      <small>${safe(g.region || 'Rio de Janeiro')} • ${safe(g.categoria || 'Geral')} • ${safe(g.membros || 0)} membros</small>
+      <a href="${safe(g.url)}" target="_blank" rel="noopener">${safe(g.url)}</a>
+    </div>`).join('');
+  }
+  async function buscar(){
+    const q = ($('scraperQuery') && $('scraperQuery').value || '').trim();
+    const status = $('scraperStatus');
+    const btn = $('searchGroupsBtn');
+    if (!q){ if(status) status.textContent='Digite uma busca primeiro.'; return; }
+    if(status) status.textContent='Buscando links públicos... aguarde.';
+    if(btn) btn.disabled = true;
+    try{
+      const res = await fetch('/api/groups/search', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({query:q, limit:50})});
+      const txt = await res.text();
+      let data = {};
+      try{ data = JSON.parse(txt); }catch(e){ throw new Error('Resposta inválida do servidor: ' + txt.slice(0,120)); }
+      if(!res.ok) throw new Error(data.message || ('Erro ' + res.status));
+      scraperResultsFix = (data.results || []).filter(x => x && x.url);
+      renderResults();
+      if(status) status.textContent = scraperResultsFix.length ? `Busca concluída: ${scraperResultsFix.length} link(s) encontrado(s).` : (data.message || 'Nenhum link encontrado. Tente: Compra e venda Paciência RJ, Moradores Paciência RJ ou Campo Grande RJ.');
+    }catch(err){
+      console.error('Erro no caçador de links:', err);
+      if(status) status.textContent = 'Erro na busca: ' + (err.message || err);
+    }finally{
+      if(btn) btn.disabled = false;
+    }
+  }
+  async function salvar(){
+    const checks = Array.from(document.querySelectorAll('.scraper-check-fix:checked, .scraper-check:checked'));
+    const selected = checks.map(ch => scraperResultsFix[Number(ch.dataset.index)]).filter(Boolean);
+    const status = $('scraperStatus');
+    if (!selected.length){ alert('Selecione pelo menos um link encontrado.'); return; }
+    if(status) status.textContent = 'Salvando selecionados...';
+    try{
+      const res = await fetch('/api/groups/import', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({groups:selected})});
+      const data = await res.json();
+      if(!res.ok) throw new Error(data.message || 'Falha ao salvar');
+      if(status) status.textContent = data.message || 'Links salvos.';
+      alert(data.message || 'Links salvos.');
+      if (typeof syncGroupsFromServer === 'function') await syncGroupsFromServer();
+    }catch(err){
+      console.error('Erro ao salvar links:', err);
+      if(status) status.textContent = 'Erro ao salvar: ' + (err.message || err);
+    }
+  }
+  function bind(){
+    document.querySelectorAll('.nav-link[href^="#"]').forEach(link=>{
+      link.addEventListener('click',(e)=>{
+        const id=(link.getAttribute('href')||'').slice(1); const target=document.getElementById(id); if(!target) return;
+        e.preventDefault(); document.querySelectorAll('main section[id]').forEach(s=>s.style.display='none'); target.style.display='block';
+        document.querySelectorAll('.nav-link').forEach(a=>a.classList.remove('active')); link.classList.add('active'); window.scrollTo({top:0,behavior:'smooth'});
+      });
+    });
+    const b=$('searchGroupsBtn'); if(b) b.onclick=buscar;
+    const s=$('importScraperBtn'); if(s) s.onclick=salvar;
+  }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded', bind); else bind();
+})();
+</script>
+
+
+<script id="admin-internal-pages-fix">
+(function(){
+  const pageMap = {
+    dashboard: ['#dashboard'],
+    postagens: ['#grupos', '#groupsTableCardFix', '#postagens', '.post-builder'],
+    grupos: ['#grupos', '#groupsTableCardFix', '#postagens', '.post-builder'],
+    'cacador-links': ['#cacador-links'],
+    clientes: ['#clientes'],
+    'controle-regiao': ['#controle-regiao'],
+    'galeria-admin': ['#galeria-admin'],
+    relatorios: ['#relatorios'],
+    cliques: ['#relatorios'],
+    conversoes: ['#relatorios'],
+    config: ['#config']
+  };
+
+  function prepare(){
+    const groupsTable = Array.from(document.querySelectorAll('section.table-card')).find(sec => /Grupos cadastrados/i.test(sec.textContent || ''));
+    if(groupsTable && !groupsTable.id) groupsTable.id = 'groupsTableCardFix';
+
+    const all = new Set();
+    Object.values(pageMap).flat().forEach(sel => document.querySelectorAll(sel).forEach(el => all.add(el)));
+    all.forEach(el => { el.classList.add('admin-page'); el.style.display = 'none'; });
+  }
+
+  function setReportsMode(mode){
+    const rel = document.getElementById('relatorios');
+    if(!rel) return;
+    const cards = Array.from(rel.querySelectorAll('.report-card'));
+    cards.forEach(card => card.style.display = '');
+    if(mode === 'cliques') cards.forEach(card => { if(card.id !== 'cliques') card.style.display = 'none'; });
+    if(mode === 'conversoes') cards.forEach(card => { if(card.id !== 'conversoes') card.style.display = 'none'; });
+  }
+
+  function openAdminPage(id){
+    prepare();
+    document.querySelectorAll('.admin-page').forEach(el => el.style.display = 'none');
+    (pageMap[id] || pageMap.postagens).forEach(sel => document.querySelectorAll(sel).forEach(el => el.style.display = ''));
+    setReportsMode(id);
+    document.querySelectorAll('.side-nav .nav-link').forEach(a => a.classList.remove('active'));
+    const active = document.querySelector(`.side-nav .nav-link[href="#${id}"]`);
+    if(active) active.classList.add('active');
+    window.scrollTo({top:0, behavior:'smooth'});
+  }
+
+  window.openAdminPage = openAdminPage;
+
+  document.addEventListener('click', function(e){
+    const link = e.target.closest('.side-nav .nav-link[href^="#"]');
+    if(!link) return;
+    const id = (link.getAttribute('href') || '').slice(1);
+    if(!pageMap[id]) return;
+    e.preventDefault();
+    e.stopPropagation();
+    e.stopImmediatePropagation();
+    openAdminPage(id);
+  }, true);
+
+  document.addEventListener('DOMContentLoaded', function(){
+    prepare();
+    const initial = (location.hash || '#postagens').replace('#','');
+    openAdminPage(pageMap[initial] ? initial : 'postagens');
+  });
+})();
+</script>
+
+  <script src="gallery-performance.js"></script>
+</body>
+</html>
+

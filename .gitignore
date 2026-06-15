@@ -1,0 +1,4 @@
+# Nunca versionar dados criados pelo painel
+/data/*.json
+/uploads/
+/assets/uploads/

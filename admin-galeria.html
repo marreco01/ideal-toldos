@@ -1,0 +1,51 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Admin Galeria - Ideal Toldos</title>
+<link rel="stylesheet" href="admin.css">
+<style>
+.gallery-admin-wrap{padding:24px;max-width:1200px;margin:0 auto}
+.gallery-form{background:#fff;border-radius:18px;padding:20px;box-shadow:0 12px 30px rgba(15,23,42,.08);display:grid;gap:12px}
+.gallery-form select,.gallery-form input{padding:13px;border:1px solid #d7e3f4;border-radius:12px}
+.gallery-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-top:22px}
+.gallery-card{background:#fff;border-radius:14px;overflow:hidden;box-shadow:0 8px 24px rgba(15,23,42,.08)}
+.gallery-card img{width:100%;height:150px;object-fit:cover;display:block}
+.gallery-card button{width:100%;border:0;background:#dc2626;color:white;padding:10px;font-weight:800;cursor:pointer}
+.btn-primary{border:0;background:#0b63ce;color:white;border-radius:12px;padding:14px 18px;font-weight:900;cursor:pointer}
+</style>
+
+<style>
+.admin-gallery-back{max-width:1200px;margin:18px auto 0;padding:0 16px}
+.admin-gallery-back a{display:inline-block;background:#0b63ce;color:white;text-decoration:none;font-weight:900;border-radius:12px;padding:12px 16px}
+</style>
+
+</head>
+<body><div class="admin-gallery-back"><a href="admin.html">← Voltar ao painel</a></div>
+<div class="gallery-admin-wrap">
+  <h1>Galeria</h1>
+  <p>Adicione fotos por categoria. As imagens ficam salvas no volume permanente do Railway.</p>
+
+  <form id="galleryUploadForm" class="gallery-form" autocomplete="off">
+    <select id="galleryCategory" name="category" required>
+      <option value="toldo-cortina">Toldo Cortina</option>
+      <option value="toldo-capota">Toldo Capota</option>
+      <option value="letreiros">Letreiros</option>
+      <option value="drywall">Drywall</option>
+      <option value="letras">Letras</option>
+      <option value="coberturas">Coberturas</option>
+      <option value="policarbonato">Policarbonato</option>
+    </select>
+    <input type="file" id="galleryPhotos" name="photos" accept="image/*" multiple required>
+    <button class="btn-primary" type="submit">Enviar fotos</button>
+    <strong id="galleryStatus"></strong>
+  </form>
+
+  <div id="galleryAdminGrid" class="gallery-grid"></div>
+</div>
+<script src="admin-gallery.js"></script>
+  <script src="gallery-performance.js"></script>
+</body>
+</html>

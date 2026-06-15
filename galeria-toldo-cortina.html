@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Galeria - Toldo Cortina</title>
+<style>
+body{margin:0;font-family:Arial,sans-serif;background:#f3f7fc;color:#071f43}
+.top{background:#0b3d91;color:white;padding:18px 24px;display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.top a{background:white;color:#0b3d91;text-decoration:none;font-weight:900;padding:10px 14px;border-radius:10px}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;padding:24px}
+.grid img{width:100%;height:240px;object-fit:cover;border-radius:16px;box-shadow:0 10px 28px rgba(0,0,0,.16);background:#dfe8f5}
+.empty{padding:24px;font-weight:900}
+.counter{padding:0 24px 10px;font-weight:800;color:#315274}
+.photo-link{display:block}
+</style>
+</head>
+<body>
+<header class="top"><a href="index.html">← Voltar ao site</a><h1>Toldo Cortina</h1></header>
+<div id="photoCounter" class="counter"></div>
+<main><div id="galleryGrid" class="grid"></div></main>
+<script>
+const FOTOS_FIXAS_TOLDO_CORTINA = [
+    'assets/galeria/toldo-cortina/00.jpeg',
+    'assets/galeria/toldo-cortina/2131de21-b6bc-4967-a12a-0980d25c2626.jpeg',
+    'assets/galeria/toldo-cortina/406765666_7121461784585998_2656805355356965747_n.jpg',
+    'assets/galeria/toldo-cortina/409541517_7121462477919262_1145392725846088689_n.jpg',
+    'assets/galeria/toldo-cortina/409551658_7121462407919269_6071822555698745540_n.jpg',
+    'assets/galeria/toldo-cortina/FB_IMG_1724781519844.jpg',
+    'assets/galeria/toldo-cortina/FB_IMG_1724781523347.jpg',
+    'assets/galeria/toldo-cortina/FB_IMG_1724781538387.jpg',
+    'assets/galeria/toldo-cortina/FB_IMG_1724781543691.jpg',
+    'assets/galeria/toldo-cortina/IMG-20250302-WA0016.jpg',
+    'assets/galeria/toldo-cortina/IMG-20250302-WA0017.jpg',
+    'assets/galeria/toldo-cortina/IMG-20250302-WA0018.jpg',
+    'assets/galeria/toldo-cortina/IMG-20250302-WA0020.jpg',
+    'assets/galeria/toldo-cortina/IMG-20250726-WA0018.jpg',
+    'assets/galeria/toldo-cortina/IMG-20250726-WA0019.jpg',
+    'assets/galeria/toldo-cortina/IMG_0881.PNG',
+    'assets/galeria/toldo-cortina/IMG_20240727_104813.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_125720.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_125726.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_125729.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_125740.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_125827.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_130048.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240727_130055.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240802_141017.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240807_151350.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240808_114336.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240808_114341.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240808_114343.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240808_120336.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240813_054224.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240814_102313.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240821_163948.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240821_164001.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240821_170330.jpg',
+    'assets/galeria/toldo-cortina/IMG_20240821_170341.jpg',
+    'assets/galeria/toldo-cortina/IMG_20241129_163114.jpg',
+    'assets/galeria/toldo-cortina/IMG_20260202_150158756.jpg',
+    'assets/galeria/toldo-cortina/IMG_20260202_150608813.jpg',
+    'assets/galeria/toldo-cortina/IMG_20260228_144318068.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-03-02 à(s) 19.26.30_ea0044fc.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-03-02 à(s) 19.38.51_26c43459.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-03-02 à(s) 19.38.55_7c7906e5.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-03-02 à(s) 19.39.19_ec55a434.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-03-02 à(s) 19.39.22_4a946e19.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-05-09 à(s) 22.56.43_825d30f5.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-07-16 à(s) 16.09.29_03e08f17.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-07-16 à(s) 16.09.29_527c7339.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-07-16 à(s) 16.09.33_a5881a37.jpg',
+    'assets/galeria/toldo-cortina/Imagem do WhatsApp de 2025-07-29 à(s) 13.03.39_dfba3696.jpg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-21 at 18.49.12.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.17 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.17 (2).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.17.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.19.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.22.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.23 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.23.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.37.24 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.28 - Copia.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.29 (2) - Copia.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.29.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.30 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.30 (2).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.30 (3).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.30 (4).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.30.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.38.34 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.39.43.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.39.44.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.39.51.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.39.59.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.40.45 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.40.45.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.40.46.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.40.54 (1).jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.40.55.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2024-08-23 at 11.41.05.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2026-04-10 at 17.31.28.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2026-06-13 at ,.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2026-06-13 at 13.26.50.jpeg',
+    'assets/galeria/toldo-cortina/WhatsApp Image 2026-06-13 at 13.26.55.jpeg'
+];
+
+function renderFotos(urls) {
+  const grid = document.getElementById('galleryGrid');
+  const counter = document.getElementById('photoCounter');
+  const unique = [...new Set(urls.filter(Boolean))];
+  counter.textContent = unique.length ? unique.length + ' fotos carregadas' : '';
+  grid.innerHTML = unique.length
+    ? unique.map(u => `<a href="${u}" target="_blank" class="photo-link"><img src="${u}" alt="Toldo Cortina" loading="lazy" decoding="async" onerror="this.closest('a').remove()"></a>`).join('')
+    : '<div class="empty">Nenhuma foto cadastrada nessa categoria.</div>';
+}
+
+async function carregarGaleria(){
+  const urls = [...FOTOS_FIXAS_TOLDO_CORTINA];
+
+  // Mantém compatível com fotos enviadas pelo Admin/Volume, se existirem.
+  try {
+    const r = await fetch('/api/gallery?category=toldo-cortina', {cache:'no-store'});
+    if (r.ok) {
+      const d = await r.json();
+      const photos = d.photos || [];
+      photos.forEach(p => {
+        const u = p.src || p.url || p.image || p.path;
+        if (u) urls.push(u);
+      });
+    }
+  } catch(e) {}
+
+  renderFotos(urls);
+}
+carregarGaleria();
+</script>
+</body>
+</html>
