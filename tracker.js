@@ -7,19 +7,19 @@
   const page = window.location.pathname + window.location.search;
   const key = `ideal_tracked_${source}_${page}`;
 
-  if (!sessionStorage.getItem(key)) {
+  let interacted=false;['mousemove','scroll','touchstart','click'].forEach(ev=>window.addEventListener(ev,()=>{interacted=true},{once:true})); if (!sessionStorage.getItem(key)) {
     sessionStorage.setItem(key, '1');
-    fetch('/api/track', {
+    setTimeout(()=>{ if(!interacted) return; fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ source, page, referrer: document.referrer || '', eventType: 'visita' }),
       keepalive: true
-    }).catch(() => {});
+    }).catch(() => {}); },5000);
   }
 
   window.idealTrack = function(eventType, extra = {}) {
     const currentSource = localStorage.getItem('ideal_src') || source || 'direto';
-    fetch('/api/track', {
+    setTimeout(()=>{ if(!interacted) return; fetch('/api/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -30,6 +30,6 @@
         ...extra
       }),
       keepalive: true
-    }).catch(() => {});
+    }).catch(() => {}); },5000);
   };
 })();

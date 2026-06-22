@@ -1,1412 +1,659 @@
-const siteOrigin = window.location.origin;
-const LOCAL_GROUPS_KEY = 'ideal_toldos_campaign_groups_v2';
-const POSTED_KEY = 'ideal_toldos_posted_groups_48h_v1';
-const POSTED_DAY_KEY = 'ideal_toldos_posted_day_v1';
-const POST_CYCLE_HOURS = 48;
-const POST_CYCLE_MS = POST_CYCLE_HOURS * 60 * 60 * 1000;
-const CAMPAIGN_IMAGE_KEY = 'ideal_toldos_campaign_image_v1';
-const CAMPAIGN_IMAGE_NAME_KEY = 'ideal_toldos_campaign_image_name_v1';
+const STORE = {
+  groups: 'ideal_groups_v4',
+  regions: 'ideal_regions_v4',
+  models: 'ideal_models_v4',
+  activity: 'ideal_activity_v4',
+  clicks: 'ideal_clicks_v4'
+};
 
-let campaignGroups = [];
-let currentStats = null;
-let scraperResults = [];
-let editingGroupId = '';
+let state = {
+  groups: [],
+  regions: [],
+  models: ['', '', '', ''],
+  activity: [],
+  clicks: [],
+  cycleQueue: [],
+  cycleIndex: -1,
+  currentGroup: null
+};
 
 const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s || '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+const normUrl = (url) => {
+  url = String(url || '').trim();
+  if(!url) return '';
+  if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  try { const u = new URL(url); return u.origin + u.pathname.replace(/\/$/,''); } catch { return ''; }
+};
 
-function slug(text) {
-  return String(text || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase().trim()
-    .replace(/https?:\/\//g, '')
-    .replace(/www\./g, '')
-    .replace(/[^a-z0-9]+/g, '_')
-    .replace(/^_+|_+$/g, '') || 'campanha';
-}
-
-function safe(text) {
-  return String(text ?? '').replace(/[&<>"]/g, (c) => ({
-    '&': '&amp;',
-    '<': '&lt;',
-    '>': '&gt;',
-    '"': '&quot;'
-  }[c]));
-}
-
-
-function showToast(message, type = 'success') {
-  let box = document.getElementById('idealToastBox');
-  if (!box) {
-    box = document.createElement('div');
-    box.id = 'idealToastBox';
-    box.style.cssText = 'position:fixed;right:18px;bottom:18px;z-index:999999;display:flex;flex-direction:column;gap:8px';
-    document.body.appendChild(box);
-  }
-  const el = document.createElement('div');
-  el.textContent = message;
-  el.style.cssText = 'padding:12px 16px;border-radius:12px;font-weight:900;box-shadow:0 10px 30px rgba(0,0,0,.18);background:' + (type === 'error' ? '#fee2e2' : '#dcfce7') + ';color:' + (type === 'error' ? '#991b1b' : '#166534');
-  box.appendChild(el);
-  setTimeout(() => el.remove(), 2400);
-}
-
-function todayKey() {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-}
-
-function isWithinPostCycle(iso) {
-  if (!iso) return false;
-  const time = new Date(iso).getTime();
-  return Number.isFinite(time) && (Date.now() - time) < POST_CYCLE_MS;
-}
-
-function loadPostedMap() {
-  try {
-    const data = JSON.parse(localStorage.getItem(POSTED_KEY) || '{}');
-    if (!data || typeof data !== 'object') return {};
-    const clean = {};
-    Object.entries(data).forEach(([key, info]) => {
-      if (info?.at && isWithinPostCycle(info.at)) clean[key] = info;
+function loadLocal(){
+  state.groups = JSON.parse(localStorage.getItem(STORE.groups) || '[]');
+  state.regions = JSON.parse(localStorage.getItem(STORE.regions) || '[]');
+  state.models = JSON.parse(localStorage.getItem(STORE.models) || '["","","",""]');
+  state.activity = JSON.parse(localStorage.getItem(STORE.activity) || '[]');
+  state.clicks = JSON.parse(localStorage.getItem(STORE.clicks) || '[]');
+  if(!state.regions.length){
+    ['Campo Grande','Santa Cruz','Paciência','Cosmos','Guaratiba','Sepetiba','Bangu','Realengo'].forEach(name => {
+      state.regions.push({name, zone:'Zona Oeste', goal:100, count:0});
     });
-    if (Object.keys(clean).length !== Object.keys(data).length) localStorage.setItem(POSTED_KEY, JSON.stringify(clean));
-    return clean;
-  } catch {
-    return {};
+    saveLocal();
   }
 }
 
-function savePostedMap(map) {
-  localStorage.setItem(POSTED_KEY, JSON.stringify(map || {}));
+function saveLocal(){
+  localStorage.setItem(STORE.groups, JSON.stringify(state.groups));
+  localStorage.setItem(STORE.regions, JSON.stringify(state.regions));
+  localStorage.setItem(STORE.models, JSON.stringify(state.models));
+  localStorage.setItem(STORE.activity, JSON.stringify(state.activity.slice(0,80)));
+  localStorage.setItem(STORE.clicks, JSON.stringify(state.clicks.slice(-5000)));
 }
 
-function normalizeUrl(url) {
-  let clean = String(url || '').trim();
-  if (!clean) return '';
-  if (clean.startsWith('www.')) clean = `https://${clean}`;
-  if (clean.startsWith('facebook.com')) clean = `https://${clean}`;
-  if (clean.startsWith('m.facebook.com')) clean = `https://${clean}`;
-  return clean;
+async function syncFromServer(){
+  try{
+    const r = await fetch('/api/groups');
+    const d = await r.json();
+    const serverGroups = Array.isArray(d.groups) ? d.groups : (Array.isArray(d) ? d : []);
+    if(serverGroups.length){
+      state.groups = mergeGroups(state.groups, serverGroups);
+      rebuildRegionCounts();
+      saveLocal();
+    }
+  }catch{}
 }
 
-function uniqueId() {
-  return `${Date.now().toString(16)}_${Math.random().toString(16).slice(2)}`;
-}
-
-function friendlyGroupName(name, url) {
-  const rawName = String(name || '').trim();
-  const rawUrl = String(url || '').trim();
-  const looksLikeUrl = /^(https?:\/\/)?(www\.)?(m\.)?(facebook|fb)\.com\//i.test(rawName);
-  if (rawName && !looksLikeUrl) return rawName;
-  const idMatch = rawUrl.match(/groups\/(\d+)/i) || rawName.match(/groups\/(\d+)/i);
-  if (idMatch) return `Grupo Facebook ${idMatch[1]}`;
-  return rawName || rawUrl.replace(/^https?:\/\//, '').replace(/^www\./, '') || 'Grupo Facebook';
-}
-
-function normalizeGroup(raw) {
-  const url = normalizeUrl(raw?.url || raw?.link || '');
-  const name = friendlyGroupName(raw?.name || '', url);
-  const region = String(raw?.region || raw?.bairro || '').trim();
-  const membros = Number(raw?.membros || raw?.members || 0) || 0;
-  const categoria = String(raw?.categoria || raw?.category || 'Geral').trim();
-  const status = String(raw?.status || 'publico').trim();
-
-  if (!name || !url) return null;
-
-  return {
-    id: raw?.id || uniqueId(),
-    name,
-    url,
-    region,
-    membros,
-    categoria,
-    status,
-    snippet: raw?.snippet || '',
-    ultimaAtualizacao: raw?.ultimaAtualizacao || raw?.updatedAt || new Date().toISOString(),
-    source: raw?.source || `grupo_${slug(name)}`,
-    createdAt: raw?.createdAt || new Date().toISOString()
-  };
-}
-
-function mergeGroups(...lists) {
+function mergeGroups(a,b){
   const map = new Map();
-  for (const list of lists) {
-    for (const raw of list || []) {
-      const group = normalizeGroup(raw);
-      if (!group) continue;
-      const key = normalizeUrl(group.url).toLowerCase();
-      if (!map.has(key)) map.set(key, group);
-      else map.set(key, { ...map.get(key), ...group, membros: group.membros || map.get(key).membros || 0 });
-    }
-  }
-  return Array.from(map.values());
+  [...a,...b].forEach(g => {
+    const url = normUrl(g.url || g.link);
+    if(url) map.set(url, {...g, url, link:url, name:g.name||g.nome||'Grupo Facebook', region:g.region||g.bairro||''});
+  });
+  return [...map.values()];
 }
 
-function loadLocalGroups() {
-  try {
-    const items = JSON.parse(localStorage.getItem(LOCAL_GROUPS_KEY) || '[]');
-    return Array.isArray(items) ? items.map(normalizeGroup).filter(Boolean) : [];
-  } catch {
-    return [];
-  }
+function rebuildRegionCounts(){
+  state.regions.forEach(r => r.count = state.groups.filter(g => (g.region||g.bairro||'').toLowerCase() === r.name.toLowerCase()).length);
 }
 
-function saveLocalGroups() {
-  localStorage.setItem(LOCAL_GROUPS_KEY, JSON.stringify(campaignGroups));
-}
-
-function groupKey(group) {
-  if (!group) return '';
-  return normalizeUrl(group.url || '').toLowerCase() || String(group.source || '').toLowerCase() || String(group.id || '');
-}
-
-function linkForGroup(group) {
-  return `${siteOrigin}/?src=${encodeURIComponent(group.source || `grupo_${slug(group.name)}`)}`;
-}
-
-function getSelectedGroup() {
-  const id = $('groupSelect')?.value || '';
-  return campaignGroups.find(g => g.id === id) || null;
-}
-
-function getPostedInfo(group) {
-  if (!group) return null;
-  if (group.lastPostedAt && isWithinPostCycle(group.lastPostedAt)) {
-    return { at: group.lastPostedAt, name: group.name, url: group.url, server: true };
-  }
-  const map = loadPostedMap();
-  const info = map[groupKey(group)] || map[group?.id] || null;
-  return info?.at && isWithinPostCycle(info.at) ? info : null;
-}
-
-async function markPosted(group) {
-  if (!group) return;
-  const now = new Date().toISOString();
-  const map = loadPostedMap();
-  const info = { at: now, name: group.name, url: group.url };
-  map[groupKey(group)] = info;
-  if (group.id) map[group.id] = info;
-  savePostedMap(map);
-
-  try {
-    const res = await fetch(`/api/groups/${encodeURIComponent(group.id)}/posted`, { method: 'POST' });
-    const data = await res.json().catch(() => ({}));
-    if (res.ok && data.ok) {
-      await syncGroupsFromServer();
-      if (!data.regionUpdate || data.regionUpdate.matched === false) {
-        await incrementRegionControlForGroup(group);
-      } else {
-        await loadRegionControl();
-      }
-      return data;
-    }
-  } catch {}
-
-  // Quando o grupo existe só no navegador/localStorage, o servidor não acha o ID.
-  // Mesmo assim a região precisa contabilizar no painel.
-  await incrementRegionControlForGroup(group);
-  group.lastPostedAt = now;
-  renderGroups();
-  updateSelectedGroupUI();
-  return { ok: true };
-}
-
-function formatNumber(value) {
-  const n = Number(value || 0);
-  if (!Number.isFinite(n) || n <= 0) return '-';
-  return n.toLocaleString('pt-BR');
-}
-
-function formatDate(iso) {
-  if (!iso) return '-';
-  try {
-    return new Date(iso).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
-  } catch {
-    return '-';
-  }
-}
-
-function clicksForSource(source) {
-  const item = currentStats?.bySource?.find(s => s.source === source);
-  return item?.total || 0;
-}
-
-function clicksTodayForSource(source) {
-  const today = todayKey();
-  const recent = currentStats?.recent || [];
-  return recent.filter(i => (i.createdAt || '').slice(0,10) === today && i.source === source).length;
-}
-
-function updateCampaignTotals() {
-  const postedMap = loadPostedMap();
-  const total = campaignGroups.length;
-  const posted = campaignGroups.filter(g => getPostedInfo(g)).length;
-
-  if ($('campaignTotalGroups')) $('campaignTotalGroups').textContent = total;
-  if ($('campaignPostedToday')) $('campaignPostedToday').textContent = posted;
-  if ($('campaignPendingToday')) $('campaignPendingToday').textContent = Math.max(total - posted, 0);
-  const members = campaignGroups.reduce((sum, g) => sum + (Number(g.membros || 0) || 0), 0);
-  if ($('totalMembersBox')) $('totalMembersBox').textContent = members.toLocaleString('pt-BR');
-  if ($('tableInfo')) $('tableInfo').textContent = `Mostrando ${total} grupo${total === 1 ? '' : 's'}`;
-}
-
-function renderGroupSelect() {
-  const select = $('groupSelect');
-  if (!select) return;
-  const current = select.value;
-  const term = ($('groupSearch')?.value || '').toLowerCase().trim();
-
-  const filtered = campaignGroups.filter(g =>
-    !term ||
-    g.name.toLowerCase().includes(term) ||
-    (g.region || '').toLowerCase().includes(term) ||
-    g.url.toLowerCase().includes(term)
-  );
-
-  select.innerHTML = filtered.length
-    ? filtered.map(g => `<option value="${safe(g.id)}">${safe(g.name)}</option>`).join('')
-    : '<option value="">Nenhum grupo encontrado</option>';
-
-  if (filtered.some(g => g.id === current)) select.value = current;
-  else if (filtered[0]) select.value = filtered[0].id;
-
-  updateSelectedGroupUI();
-}
-
-function renderGroups() {
-  updateCampaignTotals();
-  renderGroupSelect();
-
-  const tbody = $('groupsTableBody');
-  if (!tbody) return;
-
-  if (!campaignGroups.length) {
-    tbody.innerHTML = '<tr><td colspan="8" class="empty-row">Nenhum grupo cadastrado.</td></tr>';
-    return;
-  }
-
-  tbody.innerHTML = campaignGroups.map(group => {
-    const posted = getPostedInfo(group);
-    const badge = posted
-      ? '<span class="badge posted">✓ POSTADO 48H</span>'
-      : '<span class="badge pending">⌛ PENDENTE</span>';
-
-    return `<tr>
-      <td>${badge}</td>
-      <td><strong>${safe(group.name)}</strong><br><small>${safe(group.url.replace(/^https?:\/\//,''))}</small></td>
-      <td>${safe(group.region || '-')}</td>
-      <td><strong>${safe(formatNumber(group.membros))}</strong></td>
-      <td>${safe(group.categoria || 'Geral')}</td>
-      <td>${clicksTodayForSource(group.source) || clicksForSource(group.source) || 0}</td>
-      <td>${posted ? formatDate(posted.at) : '-'}</td>
-      <td>
-        <div class="row-actions">
-          <button class="icon-btn" title="Selecionar" onclick="selectGroup('${safe(group.id)}')">✓</button>
-          <button class="icon-btn" title="Editar" onclick="editGroup('${safe(group.id)}')">✎</button>
-          <button class="icon-btn" title="Abrir" onclick="openGroupById('${safe(group.id)}')">↗</button>
-          <button class="icon-btn" title="Copiar postagem" onclick="copyPostById('${safe(group.id)}')">▣</button>
-          <button class="icon-btn" title="Marcar como postado" onclick="markPostedById('${safe(group.id)}')">✅</button>
-          <button class="icon-btn" title="Excluir" onclick="deleteGroup('${safe(group.id)}')">🗑</button>
-        </div>
-      </td>
-    </tr>`;
-  }).join('');
-}
-
-function updateSelectedGroupUI() {
-  const group = getSelectedGroup();
-  const link = group ? linkForGroup(group) : '';
-
-  if ($('trackLink')) $('trackLink').value = link;
-
-  const status = $('selectedGroupStatus');
-  const last = $('selectedLastPost');
-
-  if (!group) {
-    if (status) status.textContent = 'Nenhum grupo selecionado';
-    if (last) last.textContent = 'Selecione um grupo para começar.';
-    updateGeneratedPost(false);
-    return;
-  }
-
-  const posted = getPostedInfo(group);
-  if (posted) {
-    if (status) status.textContent = '✓ POSTADO 48H';
-    if (last) last.textContent = `Última postagem: ${formatDate(posted.at)}`;
-  } else {
-    if (status) status.textContent = 'PENDENTE';
-    if (last) last.textContent = 'Ainda não foi postado nas últimas 48 horas.';
-  }
-
-  updateGeneratedPost(false);
-}
-
-function updateGeneratedPost(force = false) {
-  const group = getSelectedGroup();
-  const output = $('generatedPost');
-  if (!output) return;
-
-  if (!group) {
-    output.value = 'Selecione um grupo para gerar a postagem.';
-    return;
-  }
-
-  if (!force && !output.value.includes('Selecione um grupo')) return;
-
-  const template = $('postTemplate')?.value || '';
-  const link = linkForGroup(group);
-  output.value = template.includes('{LINK}') ? template.replaceAll('{LINK}', link) : `${template.trim()}\n\n${link}`;
-}
-
-async function copyText(text, button) {
-  if (!text) return;
-  try {
-    await navigator.clipboard.writeText(text);
-  } catch {
-    const temp = document.createElement('textarea');
-    temp.value = text;
-    document.body.appendChild(temp);
-    temp.select();
-    document.execCommand('copy');
-    temp.remove();
-  }
-
-  if (button) {
-    const old = button.textContent;
-    button.textContent = 'Copiado!';
-    setTimeout(() => button.textContent = old, 1300);
-  }
-}
-
-function showButtonFeedback(button, text = 'Salvo ✓') {
-  if (!button) return;
-  const old = button.textContent;
-  button.textContent = text;
-  button.classList.add('clicked-ok');
-  setTimeout(() => {
-    button.textContent = old;
-    button.classList.remove('clicked-ok');
-  }, 1800);
-}
-
-function loadCampaignImage() {
-  const img = $('campaignImagePreview');
-  const empty = $('campaignImageEmpty');
-  const data = localStorage.getItem(CAMPAIGN_IMAGE_KEY) || '';
-  const name = localStorage.getItem(CAMPAIGN_IMAGE_NAME_KEY) || '';
-
-  if (!img) return;
-
-  if (data && data.startsWith('data:image/')) {
-    img.src = data;
-    img.style.display = 'block';
-    if (empty) {
-      empty.textContent = name ? `Imagem carregada: ${name}` : '';
-      empty.style.display = name ? 'block' : 'none';
-    }
-  } else {
-    img.removeAttribute('src');
-    img.style.display = 'none';
-    if (empty) {
-      empty.textContent = 'Nenhuma imagem selecionada';
-      empty.style.display = 'grid';
-    }
-  }
-}
-
-function saveCampaignImage(file) {
-  if (!file || !file.type.startsWith('image/')) {
-    alert('Selecione uma imagem válida.');
-    return;
-  }
-
-  const reader = new FileReader();
-  reader.onload = () => {
-    const originalData = String(reader.result || '');
-    const preview = $('campaignImagePreview');
-    const empty = $('campaignImageEmpty');
-
-    if (preview) {
-      preview.src = originalData;
-      preview.style.display = 'block';
-    }
-    if (empty) {
-      empty.textContent = `Imagem carregada: ${file.name}`;
-      empty.style.display = 'block';
-    }
-
-    const image = new Image();
-    image.onload = () => {
-      const maxWidth = 1400;
-      let width = image.width;
-      let height = image.height;
-
-      if (width > maxWidth) {
-        height = Math.round((height * maxWidth) / width);
-        width = maxWidth;
-      }
-
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      canvas.getContext('2d').drawImage(image, 0, 0, width, height);
-
-      const compressed = canvas.toDataURL('image/jpeg', 0.84);
-      try {
-        localStorage.setItem(CAMPAIGN_IMAGE_KEY, compressed);
-        localStorage.setItem(CAMPAIGN_IMAGE_NAME_KEY, file.name);
-        if (preview) preview.src = compressed;
-      } catch {
-        alert('A imagem é grande demais para ficar salva no navegador. Use uma imagem menor.');
-      }
-    };
-    image.src = originalData;
+function go(page){
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  $(page)?.classList.add('active');
+  document.querySelector(`[data-page="${page}"]`)?.classList.add('active');
+  const titles = {
+    dashboard:['Dashboard','Resumo da ferramenta de divulgação'],
+    grupos:['Banco de Grupos','Cadastro e organização dos grupos salvos'],
+    regioes:['Controle de Região','Metas de grupos por bairro'],
+    modelos:['Modelos de Postagem','Quatro mensagens com rotação automática'],
+    ciclo:['Ciclo de Divulgação','Abrir, copiar e marcar postagens'],
+    relatorios:['Relatórios','Acompanhamento por bairro e atividade'],
+    galeria:['Galeria','Fotos por categoria'],
+    clientes:['Clientes','Cadastros recebidos pelo site'],
+    config:['Configurações','Exportação e persistência dos dados']
   };
-  reader.readAsDataURL(file);
+  $('pageTitle').textContent = titles[page]?.[0] || 'Painel';
+  $('pageSubtitle').textContent = titles[page]?.[1] || '';
 }
 
-function parseBulkLine(line) {
-  const clean = String(line || '').trim();
-  if (!clean) return null;
+function render(){
+  rebuildRegionCounts();
+  fillGroupRegionSelectFinal();
+  renderStats(); renderRegions(); renderRegionsByZone(); fillGroupRegionSelect(); renderGroups(); renderModels(); renderCycle(); renderReports(); renderActivity(); fillSelects();
+  saveLocal();
+}
 
-  let parts = clean.includes('|')
-    ? clean.split('|').map(p => p.trim())
-    : clean.split(/\s+-\s+/).map(p => p.trim());
+function renderStats(){
+  $('statGroups').textContent = state.groups.length;
+  $('statRegions').textContent = state.regions.length;
+  const today = new Date().toISOString().slice(0,10);
+  $('statPosted').textContent = state.groups.filter(g => (g.postedAt||'').slice(0,10) === today).length;
+  const totalGoal = state.regions.reduce((s,r)=>s+Number(r.goal||100),0);
+  $('statGoal').textContent = `${state.groups.length} / ${totalGoal}`;
+  $('groupCountBadge') && ($('groupCountBadge').textContent = `${state.groups.length} grupos`);
+}
 
-  let name = parts[0] || '';
-  let url = parts.find(p => /(facebook|fb)\.com\/groups/i.test(p)) || '';
-  let region = parts.find((p, idx) => idx > 0 && p !== url) || '';
+function renderRegions(){
+  const html = state.regions.map(r => {
+    const pct = Math.min(100, Math.round((Number(r.count||0) / Number(r.goal||100))*100));
+    return `<div class="region-item"><header><strong>${esc(r.name)}</strong><span>${r.count}/${r.goal}</span></header><div class="bar"><span style="width:${pct}%"></span></div></div>`;
+  }).join('');
+  $('dashRegions') && ($('dashRegions').innerHTML = html || '<p>Nenhum bairro.</p>');
+  $('regionsGrid') && ($('regionsGrid').innerHTML = state.regions.map(r => `<div class="panel"><h3>${esc(r.name)}</h3><p>${esc(r.zone)} · ${r.count}/${r.goal} grupos</p><div class="bar"><span style="width:${Math.min(100,(r.count/r.goal)*100)}%"></span></div></div>`).join(''));
+}
 
-  if (!url) {
-    const match = clean.match(/https?:\/\/\S+|(?:www\.)?facebook\.com\/groups\/\S+/i);
-    if (match) url = match[0];
+function renderGroups(){
+  const filter = ($('filterGroups')?.value || '').toLowerCase();
+  const list = state.groups.filter(g => `${g.name} ${g.region} ${g.url}`.toLowerCase().includes(filter));
+  $('groupsTable') && ($('groupsTable').innerHTML = list.map(g => `<div class="data-row"><header><strong>${esc(g.name)}</strong><span>${esc(g.region)}</span></header><small>${esc(g.url)}</small><small class="track-link">Link rastreável: ${esc(location.origin + trackingUrlForGroup(g))}</small><div class="actions"><a class="btn blue" href="${esc(g.url)}" target="_blank">Abrir grupo</a><button class="btn blue" onclick="navigator.clipboard.writeText(location.origin + trackingUrlForGroup(g)); alert('Link rastreável copiado.')">Copiar link rastreável</button><button class="btn red" onclick="deleteGroup('${esc(g.url)}')">Excluir</button></div></div>`).join('') || '<p>Nenhum grupo cadastrado.</p>');
+}
+
+function renderModels(){
+  const html = state.models.map((m,i)=>`<div class="model-item"><strong>Mensagem ${i+1}</strong><p>${esc(m || 'Vazia')}</p></div>`).join('');
+  $('dashModels') && ($('dashModels').innerHTML = html);
+  state.models.forEach((m,i)=>{ const el = $('model'+(i+1)); if(el && document.activeElement !== el) el.value = m; });
+}
+
+function fillSelects(){
+  const opts = '<option value="">Todos os bairros</option>' + state.regions.map(r=>`<option value="${esc(r.name)}">${esc(r.name)}</option>`).join('');
+  ['dashRegionSelect','cycleRegionSelect'].forEach(id => {
+    const el = $(id); if(el && el.dataset.loaded !== String(state.regions.length)){ const val=el.value; el.innerHTML=opts; el.value=val; el.dataset.loaded=String(state.regions.length); }
+  });
+}
+
+function groupsByRegion(region){
+  return state.groups.filter(g => !region || (g.region||'') === region);
+}
+
+function startCycle(){
+  const region = $('cycleRegionSelect').value;
+  const limit = Math.max(1, Number($('cycleLimit').value || 20));
+  state.cycleQueue = groupsByRegion(region).filter(g => g.status !== 'postado').slice(0, limit);
+  state.cycleIndex = -1;
+  state.currentGroup = null;
+  renderCycle();
+}
+
+function nextGroup(){
+  if(!state.cycleQueue.length) startCycle();
+  if(!state.cycleQueue.length) return alert('Nenhum grupo disponível.');
+  state.cycleIndex++;
+  if(state.cycleIndex >= state.cycleQueue.length) return alert('Fim do ciclo.');
+  state.currentGroup = state.cycleQueue[state.cycleIndex];
+  state.currentGroup.status = 'aberto';
+  window.open(trackingUrlForGroup(state.currentGroup), '_blank');
+  renderCycle(); saveLocal();
+}
+
+function currentMessage(){
+  const idx = Math.max(0, state.cycleIndex);
+  const models = state.models.filter(x => x.trim());
+  return models.length ? models[idx % models.length] : '';
+}
+
+function renderCycle(){
+  const total = state.cycleQueue.length || groupsByRegion($('cycleRegionSelect')?.value || '').length;
+  $('cycleProgress') && ($('cycleProgress').textContent = `${Math.max(0,state.cycleIndex+1)} / ${total}`);
+  const groupHtml = state.currentGroup ? `<strong>${esc(state.currentGroup.name)}</strong><br><small>${esc(state.currentGroup.region)} · ${esc(state.currentGroup.url)}</small>` : 'Nenhum grupo no ciclo.';
+  $('currentCycleGroup') && ($('currentCycleGroup').innerHTML = groupHtml);
+  $('dashCurrentGroup') && ($('dashCurrentGroup').innerHTML = groupHtml);
+  $('currentCycleMessage') && ($('currentCycleMessage').value = currentMessage());
+  $('dashCurrentMessage') && ($('dashCurrentMessage').value = currentMessage());
+  $('cycleList') && ($('cycleList').innerHTML = (state.cycleQueue.length?state.cycleQueue:groupsByRegion($('cycleRegionSelect')?.value || '')).map((g,i)=>`<div class="data-row"><header><strong>${esc(g.name)}</strong><span>${esc(g.status||'pendente')}</span></header><small>${esc(g.region)} · ${esc(g.url)}</small></div>`).join('') || '<p>Nenhum grupo.</p>');
+}
+
+async function copyCurrent(){
+  const text = currentMessage();
+  if(!text) return alert('Cadastre pelo menos uma mensagem.');
+  await navigator.clipboard.writeText(text).catch(()=>{});
+  alert('Mensagem copiada.');
+}
+
+function markPosted(){
+  if(!state.currentGroup) return alert('Abra um grupo primeiro.');
+  state.currentGroup.status = 'postado';
+  state.currentGroup.postedAt = new Date().toISOString();
+  state.activity.unshift({text:`Postagem marcada em ${state.currentGroup.name}`, at:new Date().toISOString()});
+  render(); saveLocal();
+}
+
+function renderActivity(){
+  const html = state.activity.slice(0,8).map(a=>`<div class="activity-item">✅ ${esc(a.text)}<br><small>${new Date(a.at).toLocaleString('pt-BR')}</small></div>`).join('');
+  $('recentActivity') && ($('recentActivity').innerHTML = html || '<p>Nenhuma atividade recente.</p>');
+}
+
+
+function trackingUrlForGroup(g){
+  const src = encodeURIComponent(g.id || g.url);
+  const region = encodeURIComponent(g.region || '');
+  return `/r?src=${src}&bairro=${region}`;
+}
+
+function renderClickReports(){
+  const clicks = state.clicks || [];
+  const byRegion = {};
+  const byGroup = {};
+  clicks.forEach(c=>{
+    byRegion[c.region || 'Sem bairro'] = (byRegion[c.region || 'Sem bairro']||0)+1;
+    byGroup[c.groupName || c.groupId || 'Sem grupo'] = (byGroup[c.groupName || c.groupId || 'Sem grupo']||0)+1;
+  });
+  const topRegion = Object.entries(byRegion).sort((a,b)=>b[1]-a[1])[0];
+  const topGroup = Object.entries(byGroup).sort((a,b)=>b[1]-a[1])[0];
+  if($('totalClicks')) $('totalClicks').textContent = clicks.length;
+  if($('topClickRegion')) $('topClickRegion').textContent = topRegion ? `${topRegion[0]} (${topRegion[1]})` : '-';
+  if($('topClickGroup')) $('topClickGroup').textContent = topGroup ? `${topGroup[0]} (${topGroup[1]})` : '-';
+  if($('clickReportsList')){
+    $('clickReportsList').innerHTML = Object.entries(byRegion).sort((a,b)=>b[1]-a[1]).map(([r,n])=>`<div class="data-row click-row"><strong>${esc(r)}</strong><span>${n} cliques</span></div>`).join('') || '<p>Nenhum clique registrado.</p>';
   }
-
-  if (!url) return null;
-  if (!name || /(facebook|fb)\.com\/groups/i.test(name)) name = friendlyGroupName('', url);
-
-  return normalizeGroup({ name, url, region });
 }
 
-
-function renderScraperResults() {
-  const box = $('scraperResults');
-  if (!box) return;
-  if (!scraperResults.length) {
-    box.innerHTML = '<p class="empty-scraper">Nenhum resultado carregado.</p>';
-    if ($('scraperFound')) $('scraperFound').textContent = '0';
-    return;
-  }
-  if ($('scraperFound')) $('scraperFound').textContent = scraperResults.length;
-  box.innerHTML = scraperResults.map((g, index) => `
-    <div class="scraper-item">
-      <label><input type="checkbox" class="scraper-check" data-index="${index}" checked /> <strong>${safe(g.name)}</strong></label>
-      <small>${safe(g.region || 'Rio de Janeiro')} • ${safe(g.categoria || 'Geral')} • ${safe(formatNumber(g.membros))} membros</small>
-      <a href="${safe(g.url)}" target="_blank" rel="noopener">${safe(g.url.replace(/^https?:\/\//,''))}</a>
-    </div>
-  `).join('');
-}
-
-async function searchGroupsRJ() {
-  const btn = $('searchGroupsBtn');
-  const status = $('scraperStatus');
-  const query = $('scraperQuery')?.value || '';
-  if (status) status.textContent = 'Buscando grupos públicos...';
-  if (btn) btn.disabled = true;
-  try {
-    const res = await fetch('/api/groups/search', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ query, limit: 40 })
-    });
-    if (res.status === 401) throw new Error('Sessão do servidor expirada. Refaça login depois, mas o painel não será fechado automaticamente.');
+async function loadClicks(){
+  try{
+    const res = await fetch('/api/clicks');
     const data = await res.json();
-    scraperResults = (data.results || []).map(normalizeGroup).filter(Boolean);
-    renderScraperResults();
-    if (status) status.textContent = scraperResults.length ? `Busca concluída: ${scraperResults.length} grupo(s).` : (data.message || 'Nenhum grupo encontrado.');
-  } catch {
-    if (status) status.textContent = 'Falha na busca. Tente outra palavra-chave.';
-  } finally {
-    if (btn) btn.disabled = false;
-  }
-}
-
-async function importScraperResults() {
-  const checks = Array.from(document.querySelectorAll('.scraper-check:checked'));
-  const selected = checks.map(ch => scraperResults[Number(ch.dataset.index)]).filter(Boolean);
-  if (!selected.length) return alert('Selecione pelo menos um grupo encontrado.');
-  const novos = selected.filter(g => !hasDuplicateGroupUrl(g.url));
-  const repetidos = selected.length - novos.length;
-  if (!novos.length) return alert('Todos os links selecionados já estão cadastrados. Link repetido não será aceito.');
-  campaignGroups = mergeGroups(campaignGroups, novos);
-  saveLocalGroups();
-  const result = await importGroupsToServer(novos);
-  await syncGroupsFromServer();
-  await loadRegionControl();
-  renderScraperResults();
-  alert(result?.message || `${result?.imported ?? novos.length} grupo(s) salvo(s). ${repetidos ? repetidos + ' repetido(s) ignorado(s).' : ''}`);
-}
-
-function hasDuplicateGroupUrl(url, ignoreId = '') {
-  const key = normalizeUrl(url).toLowerCase();
-  return !!key && campaignGroups.some(g => g.id !== ignoreId && normalizeUrl(g.url).toLowerCase() === key);
-}
-
-async function syncGroupsFromServer() {
-  try {
-    const res = await fetch('/api/groups', { cache: 'no-store' });
-    if (res.status === 401) throw new Error('Sessão do servidor expirada. Refaça login depois, mas o painel não será fechado automaticamente.');
-    const data = await res.json();
-    campaignGroups = mergeGroups(data.groups || [], loadLocalGroups());
-    saveLocalGroups();
-  } catch {
-    campaignGroups = mergeGroups(loadLocalGroups());
-  }
-  renderGroups();
-}
-
-async function saveGroupToServer(group) {
-  try {
-    const res = await fetch('/api/groups', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(group)
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Falha ao salvar grupo.');
-    return data;
-  } catch (err) {
-    // Não derruba o Admin para a tela de login. Salva localmente para não perder o grupo.
-    const item = normalizeGroup({
-      ...group,
-      id: group.id || uniqueId(),
-      createdAt: new Date().toISOString(),
-      ultimaAtualizacao: new Date().toISOString()
-    });
-    if (item && !hasDuplicateGroupUrl(item.url)) {
-      campaignGroups.push(item);
-      saveLocalGroups();
-      renderGroups();
-      updateSelectedGroupUI();
-      alert('Servidor não respondeu, mas o grupo foi salvo no painel local. Depois faça login e sincronize.');
-      return { ok: true, group: item, localOnly: true, message: 'Grupo salvo localmente.' };
+    if(Array.isArray(data.clicks)){
+      state.clicks = data.clicks;
+      saveLocal();
     }
-    alert(err.message || 'Falha ao salvar grupo.');
-    return null;
-  }
+  }catch{}
 }
 
-
-async function updateGroupToServer(id, group) {
-  try {
-    const res = await fetch(`/api/groups/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(group)
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Falha ao editar grupo.');
-    return data;
-  } catch (err) {
-    alert(err.message || 'Falha ao editar grupo.');
-    return null;
-  }
+function renderReports(){
+  renderClickReports();
+  $('reportsList') && ($('reportsList').innerHTML = state.regions.map(r => {
+    const postados = state.groups.filter(g => g.region === r.name && g.status === 'postado').length;
+    return `<div class="data-row"><header><strong>${esc(r.name)}</strong><span>${r.count}/${r.goal}</span></header><small>${postados} postados · ${Math.max(0,r.count-postados)} pendentes</small></div>`;
+  }).join(''));
 }
 
-function setGroupFormMode(group = null) {
-  editingGroupId = group?.id || '';
-  if ($('editingGroupId')) $('editingGroupId').value = editingGroupId;
-  if ($('groupFormTitle')) $('groupFormTitle').textContent = group ? 'Editar grupo' : 'Cadastrar grupo';
-  if ($('saveGroupBtn')) $('saveGroupBtn').textContent = group ? 'Salvar edição' : 'Salvar grupo';
-  if ($('cancelEditGroupBtn')) $('cancelEditGroupBtn').style.display = group ? 'inline-flex' : 'none';
-  if (!group) {
-    $('groupForm')?.reset();
-    return;
-  }
-  if ($('groupName')) $('groupName').value = group.name || '';
-  if ($('groupUrl')) $('groupUrl').value = group.url || '';
-  if ($('groupRegion')) $('groupRegion').value = group.region || '';
-  if ($('groupMembers')) $('groupMembers').value = group.membros || '';
-  const box = $('groupManager');
-  if (box) box.classList.add('open');
-  if ($('toggleGroupManager')) $('toggleGroupManager').textContent = 'Ocultar cadastro';
-  document.getElementById('grupos')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function saveGroup(){
+  const name = $('groupName').value.trim();
+  const url = normUrl($('groupUrl').value);
+  const region = $('groupRegion').value.trim();
+  if(!name || !url || !region) return alert('Nome, link e bairro são obrigatórios.');
+  if(state.groups.some(g => g.url === url)) return alert('Esse link já está cadastrado.');
+  state.groups.push({id:Date.now().toString(36), name, url, region, status:'pendente', createdAt:new Date().toISOString()});
+  ['groupName','groupUrl','groupRegion','groupMembers'].forEach(id => $(id).value = '');
+  render();
 }
 
-function editGroup(id) {
-  const group = campaignGroups.find(g => g.id === id);
-  if (!group) return alert('Grupo não encontrado.');
-  setGroupFormMode(group);
+function parseBulkLine(line){
+  const m = line.match(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/groups\/[^\s|]+/i) || line.match(/(?:www\.)?(?:facebook|fb)\.com\/groups\/[^\s|]+/i);
+  const url = m ? normUrl(m[0]) : '';
+  const clean = line.replace(m?m[0]:'','').replace(/[–—-]+/g,'|');
+  const parts = clean.split('|').map(x=>x.trim()).filter(Boolean);
+  const defaultRegion = $('bulkRegionDefault')?.value?.trim() || $('groupRegion')?.value?.trim() || '';
+  return {name:parts[0]||'Grupo Facebook', url, region:parts[1]||parts[2]||defaultRegion};
 }
 
-
-async function importGroupsToServer(groups) {
-  try {
-    const res = await fetch('/api/groups/import', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ groups })
-    });
-    return await res.json().catch(() => ({}));
-  } catch {
-    return { ok: false, imported: 0 };
-  }
+function saveBulk(){
+  const lines = $('bulkGroups').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);
+  let saved=0, duplicated=0, ignored=0;
+  lines.forEach(line => {
+    const g = parseBulkLine(line);
+    if(!g.url){ ignored++; return; }
+    if(!g.region){ ignored++; return; }
+    if(state.groups.some(x=>x.url===g.url)){ duplicated++; return; }
+    state.groups.push({...g,id:Date.now().toString(36)+Math.random().toString(36).slice(2),status:'pendente',createdAt:new Date().toISOString(),clicks:0});
+    saved++;
+  });
+  $('bulkGroups').value = '';
+  alert(`${saved} grupos salvos. ${duplicated} repetidos. ${ignored} ignorados.`);
+  render();
 }
 
-async function deleteGroup(id) {
-  const group = campaignGroups.find(g => g.id === id);
-  if (!group) return;
-  
-  campaignGroups = campaignGroups.filter(g => g.id !== id);
-  saveLocalGroups();
-
-  try { await fetch(`/api/groups/${encodeURIComponent(id)}`, { method: 'DELETE' }); } catch {}
-
-  renderGroups();
+function deleteGroup(url){
+  if(!confirm('Excluir grupo?')) return;
+  state.groups = state.groups.filter(g => g.url !== url);
+  render();
 }
 
-function selectGroup(id) {
-  if ($('groupSelect')) $('groupSelect').value = id;
-  updateSelectedGroupUI();
-  document.getElementById('postagens')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+function addRegion(){
+  const name = $('newRegionName').value.trim();
+  if(!name) return alert('Informe o bairro.');
+  if(state.regions.some(r => r.name.toLowerCase() === name.toLowerCase())) return alert('Bairro já existe.');
+  state.regions.push({name, zone:$('newRegionZone').value, goal:Number($('newRegionGoal').value||100), count:0});
+  $('newRegionName').value = '';
+  render();
 }
 
-function openGroupById(id) {
-  const group = campaignGroups.find(g => g.id === id);
-  if (!group) return;
-  selectGroup(id);
-  window.open(group.url, '_blank');
+function saveModels(){
+  state.models = [1,2,3,4].map(i => $('model'+i).value || '');
+  render();
+  alert('Modelos salvos.');
 }
 
-function copyPostById(id) {
-  const group = campaignGroups.find(g => g.id === id);
-  if (!group) return;
-  selectGroup(id);
-  updateGeneratedPost(true);
-  copyText($('generatedPost')?.value || '');
+function exportData(){
+  const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'ideal-toldos-backup.json';
+  a.click();
 }
 
-async function markPostedById(id) {
-  const group = campaignGroups.find(g => g.id === id);
-  if (!group) return;
-  const result = await markPosted(group);
-  showToast(result?.message || `Grupo marcado como postado: ${group.name}`);
-}
+document.addEventListener('DOMContentLoaded', async () => {
+  loadLocal(); await syncFromServer(); await loadClicks(); if((state.regions||[]).length < 20) seedDefaultRegions(); render();
 
-async function loadStats() {
-  try {
-    const res = await fetch('/api/stats', { cache: 'no-store' });
-    if (res.status === 401) throw new Error('Sessão do servidor expirada. Refaça login depois, mas o painel não será fechado automaticamente.');
-    const data = await res.json();
-    currentStats = data;
+  document.querySelectorAll('.nav-item').forEach(btn => btn.addEventListener('click', () => go(btn.dataset.page)));
+  document.querySelectorAll('[data-page-go]').forEach(btn => btn.addEventListener('click', () => go(btn.dataset.pageGo)));
 
-    if ($('todayClicks')) $('todayClicks').textContent = data.today || 0;
-    if ($('quoteTotal')) $('quoteTotal').textContent = data.quoteTotal || 0;
+  $('saveGroupBtn')?.addEventListener('click', saveGroup);
+  $('saveBulkGroupsBtn')?.addEventListener('click', saveBulk);
+  $('clearGroupFormBtn')?.addEventListener('click', () => ['groupName','groupUrl','groupRegion','groupMembers'].forEach(id => $(id).value=''));
+  $('filterGroups')?.addEventListener('input', renderGroups);
 
-    renderMonthlyReport(data.monthReport || {});
+  $('addRegionBtn')?.addEventListener('click', addRegion);
+  $('resetRegionsBtn')?.addEventListener('click', () => { if(confirm('Zerar contagem das regiões?')){ state.regions.forEach(r=>r.count=0); render(); }});
 
-    if ($('sourceList')) {
-      $('sourceList').innerHTML = (data.bySource || []).slice(0, 12).map(i =>
-        `<div class="list-row"><span>${safe(i.source)}</span><strong>${safe(i.total)}</strong></div>`
-      ).join('') || '<p>Nenhum clique ainda.</p>';
-    }
+  $('saveModelsBtn')?.addEventListener('click', saveModels);
 
-    if ($('ipList')) {
-      $('ipList').innerHTML = (data.byIp || []).slice(0, 20).map(i =>
-        `<div class="ip-row"><div><strong>${safe(i.ip || i.ipMasked || 'IP não identificado')}</strong><small>Bairro: ${safe(i.bairro || 'Não identificado')} • Região: ${safe(i.regiao || '-')} • Origem: ${safe(i.lastSource || '-')}</small></div><strong>${safe(i.total || 0)}</strong></div>`
-      ).join('') || '<p>Nenhum IP monitorado.</p>';
-    }
+  $('startCycleBtn')?.addEventListener('click', startCycle);
+  $('openNextBtn')?.addEventListener('click', nextGroup);
+  $('dashNextBtn')?.addEventListener('click', nextGroup);
+  $('copyMessageBtn')?.addEventListener('click', copyCurrent);
+  $('dashCopyBtn')?.addEventListener('click', copyCurrent);
+  $('markPostedBtn')?.addEventListener('click', markPosted);
+  $('dashPostedBtn')?.addEventListener('click', markPosted);
+  $('resetCycleBtn')?.addEventListener('click', () => { state.groups.forEach(g=>{g.status='pendente';g.postedAt=null}); state.cycleQueue=[]; state.cycleIndex=-1; state.currentGroup=null; render(); });
 
-    if ($('deviceList')) {
-      $('deviceList').innerHTML = (data.byDevice || []).map(i =>
-        `<div class="list-row"><span>${safe(i.device)}</span><strong>${safe(i.total)}</strong></div>`
-      ).join('') || '<p>Nenhum dado ainda.</p>';
-    }
+  $('cycleRegionSelect')?.addEventListener('change', renderCycle);
+  $('dashRegionSelect')?.addEventListener('change', () => { $('cycleRegionSelect').value = $('dashRegionSelect').value; startCycle(); renderCycle(); });
 
-    if ($('eventList')) {
-      $('eventList').innerHTML = (data.byEvent || []).map(i =>
-        `<div class="list-row"><span>${safe(i.eventType || 'visita')}</span><strong>${safe(i.total)}</strong></div>`
-      ).join('') || '<p>Nenhum evento ainda.</p>';
-    }
+  $('exportDataBtn')?.addEventListener('click', exportData);
 
-    renderGroups();
-  } catch {
-    console.warn('Não foi possível carregar estatísticas.');
-  }
-}
+  $('loadDefaultRegionsBtn')?.addEventListener('click', seedDefaultRegions);
+  $('exportGroupsBtn')?.addEventListener('click', exportGroupsDatabase);
+  $('importGroupsFile')?.addEventListener('change', e => { if(e.target.files[0]) importGroupsDatabase(e.target.files[0]); });
+  $('groupRegionSelect')?.addEventListener('change', e => { if(e.target.value) $('groupRegion').value = e.target.value; });
 
+});
 
-function formatMonthLabel(month) {
-  if (!month || !/^\d{4}-\d{2}$/.test(month)) return 'Mês atual';
-  const [year, m] = month.split('-');
-  const names = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-  return `${names[Number(m)-1] || m}/${year}`;
-}
-
-function renderMonthlyReport(report) {
-  if ($('monthLabel')) $('monthLabel').textContent = formatMonthLabel(report.month);
-  if ($('monthSummary')) {
-    $('monthSummary').innerHTML = `
-      <article><strong>${safe(report.total || 0)}</strong><span>Cliques no mês</span></article>
-      <article><strong>${safe(report.uniqueIps || 0)}</strong><span>IPs únicos</span></article>
-      <article><strong>${safe(report.whatsappTotal || 0)}</strong><span>WhatsApp</span></article>
-      <article><strong>${safe(report.quoteTotal || 0)}</strong><span>Orçamentos</span></article>
-    `;
-  }
-  if ($('monthDailyList')) {
-    $('monthDailyList').innerHTML = (report.byDay || []).map(i =>
-      `<div class="list-row"><span>${safe(i.day)}</span><strong>${safe(i.total)}</strong></div>`
-    ).join('') || '<p>Nenhum clique registrado neste mês.</p>';
-  }
-  if ($('monthSourceList')) {
-    $('monthSourceList').innerHTML = (report.bySource || []).slice(0, 20).map(i =>
-      `<div class="list-row"><span>${safe(i.source)}</span><strong>${safe(i.total)}</strong></div>`
-    ).join('') || '<p>Nenhuma origem registrada neste mês.</p>';
-  }
-  if ($('monthIpList')) {
-    $('monthIpList').innerHTML = (report.byIp || []).slice(0, 40).map(i =>
-      `<div class="ip-row"><div><strong>${safe(i.ip || 'IP não identificado')}</strong><small>Bairro: ${safe(i.bairro || 'Não identificado')} • Região: ${safe(i.regiao || '-')} • Origem: ${safe(i.lastSource || '-')}</small></div><strong>${safe(i.total || 0)}</strong></div>`
-    ).join('') || '<p>Nenhum IP registrado neste mês.</p>';
-  }
-}
-
-window.selectGroup = selectGroup;
-window.openGroupById = openGroupById;
-window.copyPostById = copyPostById;
-window.markPostedById = markPostedById;
 window.deleteGroup = deleteGroup;
 
 
-let regionControlItems = [];
-
-
-function normalizeRegionText(text = '') {
-  return String(text || '')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, ' ')
-    .trim();
-}
-
-function findMatchingRegionItems(group, items = []) {
-  const text = normalizeRegionText(`${group?.region || ''} ${group?.name || ''}`);
-  if (!text) return [];
-  return (items || []).filter(item => {
-    const bairro = normalizeRegionText(item?.bairro || '');
-    if (!bairro) return false;
-    return text === bairro || text.includes(bairro) || bairro.includes(text);
-  });
-}
-
-async function incrementRegionControlForGroup(group) {
-  try {
-    let items = regionControlItems || [];
-    if (!items.length) {
-      const res = await fetch('/api/regions', { cache: 'no-store' });
-      const data = await res.json().catch(() => ({}));
-      items = Array.isArray(data.regions) ? data.regions : [];
-      regionControlItems = items;
-    }
-
-    const matches = findMatchingRegionItems(group, items);
-    if (!matches.length) return { matched: false };
-
-    let latestData = null;
-    for (const item of matches) {
-      const goal = Number(item.goal || 10) || 10;
-      const current = Number(item.count || 0) || 0;
-      const nextCount = Math.min(current + 1, goal);
-      const res = await fetch(`/api/regions/${encodeURIComponent(item.id)}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ count: nextCount })
-      });
-      latestData = await res.json().catch(() => ({}));
-    }
-
-    await loadRegionControl();
-    return { matched: true, data: latestData };
-  } catch (err) {
-    console.warn('Falha ao contabilizar região localmente:', err);
-    return { matched: false, error: err };
-  }
-}
-
-function regionStatusLabel(status) {
-  return status === 'divulgando' ? 'Meta batida' : 'Pendente';
-}
-
-function regionProgress(item) {
-  const count = Number(item?.count || 0);
-  const goal = Number(item?.goal || 10) || 10;
-  return `${Math.min(count, goal)}/${goal}`;
-}
-
-function normalizedRegionStatus(item) {
-  const count = Number(item?.count || 0);
-  const goal = Number(item?.goal || 10) || 10;
-  return count >= goal ? 'divulgando' : 'pendente';
-}
-
-function groupRegionsByName(items) {
-  return (items || []).reduce((acc, item) => {
-    const region = item.region || 'Outras regiões';
-    if (!acc[region]) acc[region] = [];
-    acc[region].push(item);
-    return acc;
-  }, {});
-}
-
-async function loadRegionControl() {
-  try {
-    const res = await fetch('/api/regions', { cache: 'no-store' });
-    if (res.status === 401) throw new Error('Sessão do servidor expirada. Refaça login depois, mas o painel não será fechado automaticamente.');
-    const data = await res.json();
-    regionControlItems = Array.isArray(data.regions) ? data.regions : [];
-    renderRegionControl(data);
-  } catch (err) {
-    const grid = $('regionGrid');
-    if (grid) grid.innerHTML = '<p class="empty-row">Erro ao carregar controle de região.</p>';
-  }
-}
-
-function renderRegionControl(data = {}) {
-  const items = regionControlItems || [];
-  const total = data.total ?? items.length;
-  const active = data.divulgando ?? items.filter(i => normalizedRegionStatus(i) === 'divulgando').length;
-  const pending = data.pendentes ?? (total - active);
-
-  if ($('regionTotal')) $('regionTotal').textContent = total;
-  if ($('regionActive')) $('regionActive').textContent = active;
-  if ($('regionPending')) $('regionPending').textContent = pending;
-
-  const grid = $('regionGrid');
-  if (!grid) return;
-
-  const grouped = groupRegionsByName(items);
-  const html = Object.entries(grouped).map(([region, bairros]) => `
-    <article class="region-box">
-      <h3>${safe(region)}</h3>
-      <div class="bairro-list">
-        ${bairros.map(item => `
-          <button
-            type="button"
-            class="bairro-btn ${normalizedRegionStatus(item) === 'divulgando' ? 'divulgando' : 'pendente'}"
-            data-region-id="${safe(item.id)}"
-            title="Clique para alternar o status">
-            <span>${safe(item.bairro)}</span>
-            <small>${regionProgress(item)} • ${regionStatusLabel(normalizedRegionStatus(item))}</small>
-          </button>
-        `).join('')}
-      </div>
-    </article>
-  `).join('');
-
-  grid.innerHTML = html || '<p class="empty-row">Nenhum bairro cadastrado.</p>';
-}
-
-async function toggleRegionStatus(id, button) {
-  const item = regionControlItems.find(i => i.id === id);
-  if (!item) return;
-  const nextStatus = normalizedRegionStatus(item) === 'divulgando' ? 'pendente' : 'divulgando';
-
-  button?.classList.add('saving');
-  try {
-    const res = await fetch(`/api/regions/${encodeURIComponent(id)}`, {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status: nextStatus })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Falha ao salvar região.');
-    const index = regionControlItems.findIndex(i => i.id === id);
-    if (index >= 0 && data.item) regionControlItems[index] = data.item;
-    renderRegionControl(data);
-  } catch (err) {
-    alert(err.message || 'Falha ao salvar controle de região.');
-  } finally {
-    button?.classList.remove('saving');
-  }
-}
-
-async function setAllRegions(status) {
-  try {
-    const res = await fetch('/api/regions/reset', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ status })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Falha ao atualizar controle.');
-    regionControlItems = Array.isArray(data.regions) ? data.regions : [];
-    renderRegionControl(data);
-  } catch (err) {
-    alert(err.message || 'Falha ao atualizar controle de região.');
-  }
-}
-
-
-document.addEventListener('DOMContentLoaded', () => {
-  if (localStorage.getItem('ideal_admin_logged') !== 'yes') {
-    // O servidor também protege. Mantém compatibilidade com login antigo.
-  }
-
-  $('logoutBtn')?.addEventListener('click', async () => {
-    try { await fetch('/api/logout', { method: 'POST' }); } catch {}
-    localStorage.removeItem('ideal_admin_logged');
-    window.location.href = '/login.html';
-  });
-
-  $('toggleGroupManager')?.addEventListener('click', () => {
-    const box = $('groupManager');
-    if (!box) return;
-    box.classList.toggle('open');
-    $('toggleGroupManager').textContent = box.classList.contains('open') ? 'Ocultar cadastro' : 'Mostrar cadastro';
-  });
-
-  $('groupSearch')?.addEventListener('input', renderGroupSelect);
-  $('groupSelect')?.addEventListener('change', updateSelectedGroupUI);
-  $('postTemplate')?.addEventListener('input', () => updateGeneratedPost(true));
-
-  $('groupForm')?.addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const editId = $('editingGroupId')?.value || editingGroupId || '';
-    const group = normalizeGroup({
-      name: $('groupName')?.value,
-      url: $('groupUrl')?.value,
-      region: $('groupRegion')?.value,
-      membros: $('groupMembers')?.value
-    });
-
-    if (!group) return alert('Preencha nome e link do grupo.');
-    if (hasDuplicateGroupUrl(group.url, editId)) return alert('Esse link já está cadastrado. Link repetido não será aceito.');
-
-    const saved = editId ? await updateGroupToServer(editId, group) : await saveGroupToServer(group);
-    if (!saved?.ok) return;
-    await syncGroupsFromServer();
-    await loadRegionControl();
-    setGroupFormMode(null);
-    renderGroups();
-    if (saved.message) showButtonFeedback($('saveGroupBtn'), saved.message.includes('reiniciado') ? 'Ciclo reiniciado ✓' : 'Grupo salvo ✓');
-  });
-
-  $('cancelEditGroupBtn')?.addEventListener('click', () => setGroupFormMode(null));
-
-  $('searchGroupsBtn')?.addEventListener('click', searchGroupsRJ);
-  $('importScraperBtn')?.addEventListener('click', importScraperResults);
-
-  $('importGroupsBtn')?.addEventListener('click', async () => {
-    const lines = ($('bulkGroups')?.value || '').split('\n');
-    const imported = lines.map(parseBulkLine).filter(Boolean);
-    if (!imported.length) return alert('Cole os grupos no formato correto.');
-
-    const novos = imported.filter(g => !hasDuplicateGroupUrl(g.url));
-    const repetidos = imported.length - novos.length;
-    if (!novos.length) return alert('Todos os links já estão cadastrados. Link repetido não será aceito.');
-    const result = await importGroupsToServer(novos);
-    await syncGroupsFromServer();
-    await loadRegionControl();
-    $('bulkGroups').value = '';
-    renderGroups();
-    alert(result?.message || `${result?.imported ?? novos.length} grupo(s) importado(s). ${repetidos ? repetidos + ' repetido(s) ignorado(s).' : ''}`);
-  });
-
-  $('campaignImageInput')?.addEventListener('change', (e) => saveCampaignImage(e.target.files?.[0]));
-
-  $('clearCampaignImageBtn')?.addEventListener('click', () => {
-    localStorage.removeItem(CAMPAIGN_IMAGE_KEY);
-    localStorage.removeItem(CAMPAIGN_IMAGE_NAME_KEY);
-    if ($('campaignImageInput')) $('campaignImageInput').value = '';
-    loadCampaignImage();
-  });
-
-  $('generatePostBtn')?.addEventListener('click', () => updateGeneratedPost(true));
-
-  $('copyPostBtn')?.addEventListener('click', async (e) => {
-    const group = getSelectedGroup();
-    if (!group) return alert('Selecione um grupo.');
-    updateGeneratedPost(true);
-    await copyText($('generatedPost')?.value || '', e.currentTarget);
-  });
-
-  $('copyTrackLinkBtn')?.addEventListener('click', async (e) => {
-    const group = getSelectedGroup();
-    if (!group) return alert('Selecione um grupo.');
-    await copyText(linkForGroup(group), e.currentTarget);
-  });
-
-  $('markPostedBtn')?.addEventListener('click', async () => {
-    const group = getSelectedGroup();
-    if (!group) return alert('Selecione um grupo.');
-    const result = await markPosted(group);
-    showToast(result?.message || `Grupo marcado como postado: ${group.name}`);
-  });
-
-  $('openGroupBtn')?.addEventListener('click', () => {
-    const group = getSelectedGroup();
-    if (!group) return alert('Selecione um grupo.');
-    window.open(group.url, '_blank');
-  });
-
-  $('regionGrid')?.addEventListener('click', (e) => {
-    const btn = e.target.closest('[data-region-id]');
-    if (!btn) return;
-    toggleRegionStatus(btn.dataset.regionId, btn);
-  });
-
-  $('markAllPendingBtn')?.addEventListener('click', () => {
-    if (confirm('Marcar todos os bairros como vermelho / não iniciado?')) setAllRegions('pendente');
-  });
-
-  $('markAllActiveBtn')?.addEventListener('click', () => {
-    if (confirm('Marcar todos os bairros como verde / em divulgação?')) setAllRegions('divulgando');
-  });
-
-  loadCampaignImage();
-  syncGroupsFromServer();
-  loadRegionControl();
-  loadStats();
-  setInterval(loadStats, 30000);
-});
-
-// Sem recarregamento automático: evita perder preenchimento e ações do painel.
-const lastUpdateEl=document.getElementById('lastUpdate'); if(lastUpdateEl) lastUpdateEl.textContent=new Date().toLocaleString('pt-BR');
-async function loadAdminIpStatus() {
-  try {
-    const res = await fetch('/api/admin/ip', { cache: 'no-store' });
-    if (res.status === 401) throw new Error('Sessão do servidor expirada. Refaça login depois, mas o painel não será fechado automaticamente.');
-    const data = await res.json();
-    const e = document.getElementById('myIp');
-    if (e) e.textContent = data.ipMasked || data.ip || 'Não identificado';
-    const s = document.getElementById('ipIgnoreStatus');
-    if (s) s.textContent = data.ignored
-      ? 'Seu IP está configurado para NÃO contar como visita.'
-      : 'Admin logado não conta. Clique em “Não contar meu IP” para bloquear este IP também.';
-  } catch {}
-}
-
-async function setMyIpIgnored(ignore) {
-  try {
-    const res = await fetch(ignore ? '/api/admin/ignore-my-ip' : '/api/admin/unignore-my-ip', { method: 'POST' });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error(data.message || 'Falha ao salvar configuração de IP.');
-    await loadAdminIpStatus();
-    alert(data.message || 'Configuração atualizada.');
-  } catch (err) {
-    alert(err.message || 'Falha ao salvar configuração de IP.');
-  }
-}
-
-document.getElementById('ignoreMyIpBtn')?.addEventListener('click', () => setMyIpIgnored(true));
-document.getElementById('unignoreMyIpBtn')?.addEventListener('click', () => setMyIpIgnored(false));
-loadAdminIpStatus();
-
-setInterval(()=>{const e=document.getElementById('lastUpdate'); if(e)e.textContent=new Date().toLocaleString('pt-BR');},1000);
-
-
-// === bairros-select-auto ===
-const IDEAL_FALLBACK_REGIONS = {"Zona Oeste": ["Campo Grande", "Santa Cruz", "Cosmos", "Paciência", "Bangu", "Realengo", "Guaratiba", "Sepetiba", "Inhoaíba", "Senador Camará", "Barra da Tijuca", "Recreio", "Jacarepaguá", "Taquara"], "Zona Norte": ["Méier", "Madureira", "Irajá", "Penha", "Tijuca", "Bonsucesso", "Ramos", "Olaria", "Vila Isabel", "Engenho de Dentro"], "Baixada": ["Nova Iguaçu", "Duque de Caxias", "Belford Roxo", "Nilópolis", "São João de Meriti", "Mesquita", "Queimados"], "Centro": ["Centro", "Lapa", "Catete", "Glória", "Cidade Nova", "Estácio"], "Zona Sul": ["Copacabana", "Botafogo", "Flamengo", "Ipanema", "Leblon", "Laranjeiras", "Gávea"]};
-
-function normalizeRegionsToOptions(data) {
-  const out = [];
-  if (Array.isArray(data)) {
-    data.forEach(item => {
-      if (typeof item === 'string') out.push({name:item, region:'Outros', count:0, target:10});
-      else if (item) out.push({
-        name: item.name || item.nome || item.bairro || '',
-        region: item.region || item.regiao || item.zona || 'Outros',
-        count: Number(item.count || item.total || item.progress || 0),
-        target: Number(item.target || item.meta || 10)
-      });
-    });
-  } else if (data && typeof data === 'object') {
-    const source = Array.isArray(data.regions) ? data.regions : data;
-    if (Array.isArray(source)) {
-      source.forEach(item => {
-        if (typeof item === 'string') out.push({name:item, region:'Outros', count:0, target:10});
-        else if (item) out.push({
-          name: item.name || item.nome || item.bairro || '',
-          region: item.region || item.regiao || item.zona || 'Outros',
-          count: Number(item.count || item.total || item.progress || 0),
-          target: Number(item.target || item.meta || item.goal || 10)
-        });
-      });
-    } else {
-      Object.entries(source).forEach(([region, bairros]) => {
-        const arr = Array.isArray(bairros) ? bairros : (bairros.bairros || bairros.items || []);
-        arr.forEach(item => {
-          if (typeof item === 'string') out.push({name:item, region, count:0, target:10});
-          else if (item) out.push({
-            name: item.name || item.nome || item.bairro || '',
-            region: item.region || region,
-            count: Number(item.count || item.total || item.progress || 0),
-            target: Number(item.target || item.meta || item.goal || 10)
-          });
-        });
-      });
-    }
-  }
-  const seen = new Set();
-  return out.filter(x => x.name).filter(x => {
-    const key = (x.region + '|' + x.name).toLowerCase();
-    if (seen.has(key)) return false;
-    seen.add(key);
-    return true;
-  }).sort((a,b) => (a.region+a.name).localeCompare(b.region+b.name, 'pt-BR'));
-}
-
-async function carregarBairrosNoCadastroGrupo() {
-  const select = document.getElementById('groupRegion');
-  if (!select) return;
-  let data = IDEAL_FALLBACK_REGIONS;
-  try {
-    const r = await fetch('/api/regions');
-    if (r.ok) data = await r.json();
-  } catch (e) {}
-  const options = normalizeRegionsToOptions(data);
-  select.innerHTML = '<option value="">Selecione o bairro cadastrado</option>';
-  let currentRegion = '';
-  options.forEach(o => {
-    if (o.region !== currentRegion) {
-      currentRegion = o.region;
-      const group = document.createElement('option');
-      group.disabled = true;
-      group.textContent = '── ' + currentRegion + ' ──';
-      select.appendChild(group);
-    }
-    const opt = document.createElement('option');
-    opt.value = o.name;
-    opt.dataset.region = o.region;
-    opt.textContent = `${o.name} (${o.count}/${o.target})`;
-    select.appendChild(opt);
-  });
-}
-
-document.addEventListener('DOMContentLoaded', carregarBairrosNoCadastroGrupo);
-
-
-
-
-// === clientes cadastrados ===
-function formatClientDate(iso) {
-  if (!iso) return '-';
-  try {
-    return new Date(iso).toLocaleString('pt-BR', {
-      day: '2-digit', month: '2-digit', year: 'numeric',
-      hour: '2-digit', minute: '2-digit'
-    });
-  } catch { return '-'; }
-}
-
-async function loadClients() {
-  const tbody = document.getElementById('clientsTableBody');
-  if (!tbody) return;
-
-  try {
-    const res = await fetch('/api/clients');
-    const data = await res.json();
-    const clients = Array.isArray(data.clients) ? data.clients : [];
-
-    const info = document.getElementById('clientsInfo');
-    if (info) info.textContent = `Mostrando ${clients.length} cliente${clients.length === 1 ? '' : 's'}`;
-
-    if (!clients.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Nenhum cliente cadastrado.</td></tr>';
-      return;
-    }
-
-    tbody.innerHTML = clients.slice().reverse().map(client => {
-      const phone = String(client.telefone || '').replace(/\D/g, '');
-      const wa = phone ? `https://wa.me/55${phone.startsWith('55') ? phone.slice(2) : phone}` : '#';
-      return `<tr>
-        <td><strong>${safe(client.nome || '-')}</strong><br><small>${safe(client.observacao || '')}</small></td>
-        <td>${safe(client.telefone || '-')}</td>
-        <td>${safe(client.bairro || '-')}</td>
-        <td>${safe(client.servico || '-')}</td>
-        <td>${formatClientDate(client.createdAt)}</td>
-        <td>
-          <div class="row-actions">
-            <a class="icon-btn" href="${wa}" target="_blank" rel="noopener" title="Chamar no WhatsApp">💬</a>
-            <button class="icon-btn" type="button" onclick="deleteClient('${safe(client.id)}')" title="Excluir">🗑</button>
-          </div>
-        </td>
-      </tr>`;
-    }).join('');
-  } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="6" class="empty-row">Erro ao carregar clientes.</td></tr>';
-  }
-}
-
-async function deleteClient(id) {
-  if (!confirm('Excluir este cliente?')) return;
-  const res = await fetch(`/api/clients/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (res.ok) loadClients();
-}
-
-
-// === galeria do site ===
-const GALLERY_LABELS = {
-  'toldo-cortina': 'Toldo Cortina',
-  'toldo-capota': 'Toldo Capota',
-  'coberturas': 'Coberturas',
-  'policarbonato': 'Policarbonato',
-  'letreiros': 'Letreiros',
-  'drywall': 'Drywall',
-  'letras': 'Letras'
-};
-
-function fileToDataUrl(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function formatGalleryDate(iso) {
-  try { return new Date(iso).toLocaleString('pt-BR'); } catch { return '-'; }
-}
-
-async function loadGalleryAdmin() {
-  const tbody = document.getElementById('galleryTableBody');
-  if (!tbody) return;
-  try {
-    const res = await fetch('/api/gallery', { cache: 'no-store' });
-    const data = await res.json();
-    const photos = Array.isArray(data.photos) ? data.photos : [];
-    if (!photos.length) {
-      tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Nenhuma foto cadastrada.</td></tr>';
-      return;
-    }
-    tbody.innerHTML = photos.map(photo => `<tr>
-      <td><img loading="lazy" decoding="async" class="gallery-admin-thumb" src="${photo.src}" alt="${safe(photo.title || 'Foto')}"></td>
-      <td>${safe(photo.categoryLabel || GALLERY_LABELS[photo.category] || photo.category || '-')}</td>
-      <td>${safe(photo.title || '-')}</td>
-      <td>${formatGalleryDate(photo.createdAt)}</td>
-      <td><button class="icon-btn" type="button" onclick="deleteGalleryPhoto('${safe(photo.id)}')" title="Excluir foto">🗑</button></td>
-    </tr>`).join('');
-  } catch (err) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-row">Erro ao carregar galeria.</td></tr>';
-  }
-}
-
-async function deleteGalleryPhoto(id) {
-  if (!confirm('Excluir esta foto da galeria?')) return;
-  const res = await fetch(`/api/gallery/${encodeURIComponent(id)}`, { method: 'DELETE' });
-  if (res.ok) loadGalleryAdmin();
-}
-
-async function uploadGalleryPhotos(e) {
-  e.preventDefault();
-  const status = document.getElementById('galleryStatus');
-  const categoryEl = document.getElementById('galleryCategory');
-  const category = categoryEl?.value || localStorage.getItem('idealGalleryCategoryLocked') || 'toldo-cortina';
-  localStorage.setItem('idealGalleryCategoryLocked', category);
-  const title = document.getElementById('galleryTitle')?.value || '';
-  const input = document.getElementById('galleryFiles');
-  const files = Array.from(input?.files || []);
-  if (!files.length) return alert('Selecione as fotos.');
-  if (status) status.textContent = 'Enviando fotos...';
-  const payloadFiles = [];
-  for (const file of files.slice(0, 12)) {
-    if (!file.type.startsWith('image/')) continue;
-    payloadFiles.push({ name: file.name, title, data: await fileToDataUrl(file) });
-  }
-  try {
-    const res = await fetch('/api/gallery', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ category, title, files: payloadFiles })
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok || data.ok === false) throw new Error(data.message || 'Erro ao enviar fotos.');
-    if (status) status.textContent = `${data.saved?.length || payloadFiles.length} foto(s) enviada(s) para ${GALLERY_LABELS[category]}.`;
-    if (input) input.value = '';
-    if (categoryEl) categoryEl.value = category;
-    localStorage.setItem('idealGalleryCategoryLocked', category);
-    const titleInput = document.getElementById('galleryTitle');
-    if (titleInput) titleInput.value = '';
-    loadGalleryAdmin();
-  } catch (err) {
-    if (status) status.textContent = err.message || 'Erro ao enviar fotos.';
-  }
-}
-
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('galleryUploadForm')?.addEventListener('submit', uploadGalleryPhotos);
-  document.getElementById('reloadGalleryBtn')?.addEventListener('click', loadGalleryAdmin);
-  loadGalleryAdmin();
-});
-
-
-// === PATCH Ideal: feedback dos botões + modelo fixo + caçador de links ===
+// === Gerador de buscas em massa ===
 (function(){
-  function toast(msg, type='success'){
-    let box=document.getElementById('idealToastBox');
-    if(!box){
-      box=document.createElement('div');
-      box.id='idealToastBox';
-      box.style.cssText='position:fixed;right:18px;bottom:18px;z-index:999999';
-      document.body.appendChild(box);
-    }
-    const el=document.createElement('div');
-    el.textContent=msg;
-    el.style.cssText='margin-top:8px;padding:12px 16px;border-radius:12px;font-weight:900;box-shadow:0 10px 30px rgba(0,0,0,.18);background:'+(type==='error'?'#fee2e2':'#dcfce7')+';color:'+(type==='error'?'#991b1b':'#166534');
-    box.appendChild(el);
-    setTimeout(()=>el.remove(),2600);
-  }
-  window.idealButtonFeedback=function(btn,msg){
-    if(!btn)return;
-    const old=btn.innerHTML;
-    btn.dataset.oldText=old;
-    btn.classList.add('clicked-ok');
-    btn.innerHTML='✓ '+msg;
-    setTimeout(()=>{ if(btn.dataset.oldText){btn.innerHTML=btn.dataset.oldText; btn.classList.remove('clicked-ok');}},2200);
-  };
+  let massSearchLinks = [];
+  const $ = (id) => document.getElementById(id);
 
-  document.addEventListener('click',(e)=>{
-    const btn=e.target.closest('button');
-    if(!btn)return;
-    const t=(btn.textContent||'').toLowerCase();
-    if(t.includes('gerar postagem')) idealButtonFeedback(btn,'Postagem gerada');
-    if(t.includes('copiar postagem')) idealButtonFeedback(btn,'Postagem copiada');
-    if(t.includes('copiar link')) idealButtonFeedback(btn,'Link copiado');
-    if(t.includes('marcar como postado')) { btn.classList.add('posted-ok'); btn.innerHTML='✓ Postado'; }
-  }, true);
+  function buildQuery(term){
+    const suffix = ($('massSearchSuffix')?.value || 'RJ').trim();
+    const type = $('massSearchType')?.value || 'google-groups';
+    let query = term.trim();
+    if(suffix && !new RegExp('\b'+suffix+'\b','i').test(query)) query += ' ' + suffix;
 
-  function saveTemplate(){
-    const el=document.getElementById('postTemplate') || document.querySelector('textarea[name="postTemplate"], textarea#modeloPostagem, textarea');
-    if(el) localStorage.setItem('ideal_post_template_v3', el.value || '');
-  }
-  function loadTemplate(){
-    const el=document.getElementById('postTemplate') || document.querySelector('textarea[name="postTemplate"], textarea#modeloPostagem, textarea');
-    const saved=localStorage.getItem('ideal_post_template_v3');
-    if(el && saved && (!el.value || el.value.trim()==='' || el.value.includes('{LINK}'))) el.value=saved;
-    if(el) el.addEventListener('input', saveTemplate);
+    if(type === 'google-desapego') query = 'site:facebook.com/groups desapego ' + query;
+    else if(type === 'google-compra-venda') query = 'site:facebook.com/groups compra e venda ' + query;
+    else if(type === 'google-servicos') query = 'site:facebook.com/groups serviços ' + query;
+    else query = 'site:facebook.com/groups ' + query;
+
+    return query;
   }
 
-  window.openFacebookGroupHunter=function(){
-    const target=document.getElementById('cacador-links');
-    if(target){ target.scrollIntoView({behavior:'smooth',block:'start'}); return; }
-  };
+  function buildUrl(term){
+    return 'https://www.google.com/search?q=' + encodeURIComponent(buildQuery(term));
+  }
 
-  document.addEventListener('DOMContentLoaded',()=>{
-    loadTemplate();
+  function generateMassSearch(){
+    const raw = ($('massSearchTerms')?.value || '').split(/
++/).map(x=>x.trim()).filter(Boolean);
+    massSearchLinks = raw.map(term => ({term, query: buildQuery(term), url: buildUrl(term)}));
+    const box = $('massSearchResults');
+    if(!box) return;
 
-    if(false && !document.getElementById('linkHunterBtn')){
-      const area=document.querySelector('#grupos, .groups, .group-card, main') || document.body;
-      const btn=document.createElement('button');
-      btn.id='linkHunterBtn';
-      btn.type='button';
-      btn.textContent='🔎 Caçador de links';
-      btn.style.cssText='background:#7c3aed;color:white;border:0;border-radius:12px;padding:12px 16px;font-weight:900;cursor:pointer;margin:10px 0';
-      btn.onclick=window.openFacebookGroupHunter;
-      area.prepend(btn);
-    }
+    box.innerHTML = massSearchLinks.length ? massSearchLinks.map(item => `
+      <div class="search-result-row">
+        <div><strong>${item.query}</strong><br><small>${item.url}</small></div>
+        <a href="${item.url}" target="_blank" rel="noopener">Abrir</a>
+      </div>
+    `).join('') : '<p>Nenhuma busca gerada.</p>';
+  }
+
+  function openAllMassSearch(){
+    if(!massSearchLinks.length) generateMassSearch();
+    if(!massSearchLinks.length) return alert('Digite pelo menos um bairro.');
+
+    massSearchLinks.forEach((item, index) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = item.url;
+        a.target = '_blank';
+        a.rel = 'noopener';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+      }, index * 650);
+    });
+  }
+
+  async function copyAllMassSearch(){
+    if(!massSearchLinks.length) generateMassSearch();
+    const text = massSearchLinks.map(i => i.url).join('
+');
+    await navigator.clipboard.writeText(text).catch(()=>{});
+    alert('Buscas copiadas.');
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    $('generateMassSearchBtn')?.addEventListener('click', generateMassSearch);
+    $('openMassSearchBtn')?.addEventListener('click', openAllMassSearch);
+    $('copyMassSearchBtn')?.addEventListener('click', copyAllMassSearch);
   });
 })();
 
+
+// === Caçador de Links 2.0 ===
+(function(){
+  let hunter2Links = [];
+  const $ = (id) => document.getElementById(id);
+
+  function h2Esc(s){
+    return String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+  }
+
+  function h2Normalize(url){
+    url = String(url || '').trim();
+    url = url.replace(/^https?:\/\/l\.facebook\.com\/l\.php\?u=/i, '');
+    try { url = decodeURIComponent(url); } catch(e) {}
+    if(!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    try{
+      const u = new URL(url);
+      if(!u.hostname.includes('facebook.com') && !u.hostname.includes('fb.com')) return '';
+      if(!u.pathname.includes('/groups/')) return '';
+      return 'https://www.facebook.com' + u.pathname.replace(/\/$/, '');
+    }catch(e){ return ''; }
+  }
+
+  function h2NameFromUrl(url){
+    const raw = String(url).split('/groups/')[1] || '';
+    const clean = raw.split(/[/?#]/)[0].replace(/[-_]+/g,' ').trim();
+    if(!clean || /^\d+$/.test(clean)) return 'Grupo Facebook';
+    return clean.replace(/\b\w/g, l => l.toUpperCase());
+  }
+
+  function h2Extract(){
+    const text = $('hunter2PasteBox')?.value || '';
+    const region = ($('hunter2DefaultRegion')?.value || '').trim();
+
+    const rawMatches = [
+      ...text.matchAll(/https?:\/\/(?:www\.)?(?:facebook|fb)\.com\/groups\/[^\s<>"')]+/gi),
+      ...text.matchAll(/(?:www\.)?(?:facebook|fb)\.com\/groups\/[^\s<>"')]+/gi)
+    ].map(m=>m[0]);
+
+    const unique = new Map();
+    rawMatches.forEach(raw => {
+      const url = h2Normalize(raw);
+      if(url && !unique.has(url)){
+        unique.set(url, {
+          id: 'h2_' + Math.random().toString(36).slice(2),
+          name: h2NameFromUrl(url),
+          url,
+          region,
+          selected: true
+        });
+      }
+    });
+
+    hunter2Links = [...unique.values()];
+    h2Render();
+  }
+
+  function h2Render(){
+    const box = $('hunter2Results');
+    const status = $('hunter2Status');
+    if(status) status.textContent = `${hunter2Links.length} links extraídos.`;
+    if(!box) return;
+    if(!hunter2Links.length){
+      box.innerHTML = '<p>Nenhum link encontrado. Cole links do tipo facebook.com/groups/...</p>';
+      return;
+    }
+    box.innerHTML = hunter2Links.map((item, i)=>`
+      <div class="hunter2-row">
+        <input type="checkbox" ${item.selected?'checked':''} onchange="window.hunter2Toggle(${i}, this.checked)">
+        <div>
+          <strong contenteditable="true" onblur="window.hunter2EditName(${i}, this.textContent)">${h2Esc(item.name)}</strong>
+          <small>${h2Esc(item.url)}</small>
+          <input value="${h2Esc(item.region)}" placeholder="Bairro" oninput="window.hunter2EditRegion(${i}, this.value)">
+        </div>
+        <span class="tag">${h2Esc(item.region || 'Sem bairro')}</span>
+      </div>
+    `).join('');
+  }
+
+  window.hunter2Toggle = (i, checked) => { if(hunter2Links[i]) hunter2Links[i].selected = checked; };
+  window.hunter2EditName = (i, name) => { if(hunter2Links[i]) hunter2Links[i].name = name.trim() || 'Grupo Facebook'; };
+  window.hunter2EditRegion = (i, region) => { if(hunter2Links[i]) { hunter2Links[i].region = region.trim(); h2Render(); } };
+
+  function h2SelectAll(){
+    hunter2Links.forEach(x => x.selected = true);
+    h2Render();
+  }
+
+  function h2Clear(){
+    hunter2Links = [];
+    if($('hunter2PasteBox')) $('hunter2PasteBox').value = '';
+    h2Render();
+  }
+
+  function h2Save(){
+    const selected = hunter2Links.filter(x => x.selected && x.url);
+    if(!selected.length) return alert('Nenhum link selecionado.');
+
+    let saved = 0, repeated = 0, noRegion = 0;
+    selected.forEach(item => {
+      if(!item.region){ noRegion++; return; }
+      if(state.groups.some(g => g.url === item.url)){ repeated++; return; }
+      state.groups.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        name: item.name || 'Grupo Facebook',
+        url: item.url,
+        region: item.region,
+        status: 'pendente',
+        createdAt: new Date().toISOString(),
+        clicks: 0
+      });
+      saved++;
+    });
+    rebuildRegionCounts();
+    render();
+    alert(`${saved} grupos salvos. ${repeated} repetidos. ${noRegion} sem bairro.`);
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    $('hunter2ExtractBtn')?.addEventListener('click', h2Extract);
+    $('hunter2SelectAllBtn')?.addEventListener('click', h2SelectAll);
+    $('hunter2SaveBtn')?.addEventListener('click', h2Save);
+    $('hunter2ClearBtn')?.addEventListener('click', h2Clear);
+  });
+})();
+
+
+// === PATCH 2.1: Controle de Cliques + IP Admin + Link rastreável ===
+(function(){
+  const $21 = (id) => document.getElementById(id);
+  const esc21 = (s) => String(s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+
+  window.idealTrackingUrl21 = function(g){
+    const id = encodeURIComponent(g.id || g.url || g.link || '');
+    const bairro = encodeURIComponent(g.region || g.bairro || '');
+    return location.origin + '/r?src=' + id + '&bairro=' + bairro;
+  };
+
+  async function fetchClicks21(){
+    try{
+      const res = await fetch('/api/clicks');
+      if(!res.ok) throw new Error('api');
+      const data = await res.json();
+      return Array.isArray(data.clicks) ? data.clicks : [];
+    }catch(e){
+      return JSON.parse(localStorage.getItem('ideal_clicks_cache_21') || '[]');
+    }
+  }
+
+  function renderClicks21(clicks){
+    localStorage.setItem('ideal_clicks_cache_21', JSON.stringify(clicks || []));
+    const byRegion = {};
+    const byGroup = {};
+    (clicks||[]).forEach(c=>{
+      const r = c.region || c.bairro || 'Sem bairro';
+      const g = c.groupName || c.group || 'Sem grupo';
+      byRegion[r] = (byRegion[r]||0)+1;
+      byGroup[g] = (byGroup[g]||0)+1;
+    });
+
+    const topRegion = Object.entries(byRegion).sort((a,b)=>b[1]-a[1])[0];
+    const topGroup = Object.entries(byGroup).sort((a,b)=>b[1]-a[1])[0];
+
+    if($21('clicksTotal21')) $21('clicksTotal21').textContent = (clicks||[]).length;
+    if($21('clicksTopRegion21')) $21('clicksTopRegion21').textContent = topRegion ? `${topRegion[0]} (${topRegion[1]})` : '-';
+    if($21('clicksTopGroup21')) $21('clicksTopGroup21').textContent = topGroup ? `${topGroup[0]} (${topGroup[1]})` : '-';
+
+    if($21('clicksByRegion21')){
+      $21('clicksByRegion21').innerHTML = Object.entries(byRegion).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+        <div class="data-row click-row21"><strong>${esc21(k)}</strong><span>${v} cliques</span></div>
+      `).join('') || '<p>Nenhum clique registrado.</p>';
+    }
+
+    if($21('clicksByGroup21')){
+      $21('clicksByGroup21').innerHTML = Object.entries(byGroup).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`
+        <div class="data-row click-row21"><strong>${esc21(k)}</strong><span>${v} cliques</span></div>
+      `).join('') || '<p>Nenhum clique registrado.</p>';
+    }
+  }
+
+  async function refreshClicks21(){
+    renderClicks21(await fetchClicks21());
+  }
+
+  async function saveIgnoredIp21(){
+    const ip = ($21('ignoredIp21')?.value || '').trim();
+    localStorage.setItem('ideal_ignored_ip_21', ip);
+    try{
+      await fetch('/api/settings/ignored-ip', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({ip})
+      });
+    }catch(e){}
+    alert(ip ? 'IP ignorado salvo: ' + ip : 'IP ignorado removido.');
+  }
+
+  async function resetClicks21(){
+    if(!confirm('Zerar relatório de cliques?')) return;
+    localStorage.setItem('ideal_clicks_cache_21', '[]');
+    try{ await fetch('/api/clicks/reset', {method:'POST'}); }catch(e){}
+    renderClicks21([]);
+  }
+
+  function injectTrackingLinks21(){
+    // Adiciona botão de copiar link rastreável na lista de grupos, se houver grupos renderizados pelo painel.
+    document.querySelectorAll('.bank-row, .data-row, .cycle-row').forEach(row=>{
+      if(row.dataset.track21 === 'ok') return;
+      const linkEl = row.querySelector('a[href*="facebook.com/groups"], small');
+      const text = row.textContent || '';
+      const urlMatch = text.match(/https?:\/\/(?:www\.)?facebook\.com\/groups\/[^\s]+/i);
+      if(!urlMatch) return;
+      const url = urlMatch[0].replace(/[),.]+$/,'');
+      const name = (row.querySelector('strong')?.textContent || 'Grupo Facebook').trim();
+      const region = (text.match(/Campo Grande|Cosmos|Paciência|Santa Cruz|Bangu|Realengo|Méier|Guaratiba|Jacarepaguá|Recreio|Barra da Tijuca/i)||[''])[0];
+      const fake = {id:url, url, region};
+      const track = window.idealTrackingUrl21(fake);
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'btn blue';
+      btn.textContent = 'Copiar link rastreável';
+      btn.onclick = async()=>{ await navigator.clipboard.writeText(track).catch(()=>{}); alert('Link rastreável copiado.'); };
+      const actions = row.querySelector('.actions') || row;
+      actions.appendChild(btn);
+      row.dataset.track21 = 'ok';
+    });
+  }
+
+  document.addEventListener('DOMContentLoaded', ()=>{
+    const ip = localStorage.getItem('ideal_ignored_ip_21') || '';
+    if($21('ignoredIp21')) $21('ignoredIp21').value = ip;
+    $21('saveIgnoredIp21')?.addEventListener('click', saveIgnoredIp21);
+    $21('refreshClicks21')?.addEventListener('click', refreshClicks21);
+    $21('resetClicks21')?.addEventListener('click', resetClicks21);
+    refreshClicks21();
+    setInterval(injectTrackingLinks21, 1200);
+  });
+})();

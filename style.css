@@ -151,3 +151,14 @@ img {
 .load-more-gallery:hover {
   filter: brightness(.95);
 }
+
+
+/* correção logo sem fundo */
+.logo, .site-logo, .navbar .logo, header .logo, .brand, .side-logo {
+  background: transparent !important;
+  box-shadow: none !important;
+}
+.logo img, .site-logo img, .navbar .logo img, header img, .brand img, .side-logo img {
+  background: transparent !important;
+  object-fit: contain !important;
+}

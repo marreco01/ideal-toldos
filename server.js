@@ -4,6 +4,99 @@ const path = require('path');
 const crypto = require('crypto');
 const https = require('https');
 
+
+
+
+
+
+
+
+// === PATCH 2.1 SAFE CLIQUES ===
+const IDEAL21_DATA_DIR = process.env.UPLOAD_DIR || path.join(__dirname, 'data');
+const IDEAL21_CLICKS_FILE = process.env.CLICKS_FILE || path.join(IDEAL21_DATA_DIR, 'clicks.json');
+const IDEAL21_SETTINGS_FILE = process.env.SETTINGS_FILE || path.join(IDEAL21_DATA_DIR, 'settings.json');
+
+function ideal21Ensure(){
+  fs.mkdirSync(IDEAL21_DATA_DIR, {recursive:true});
+  if(!fs.existsSync(IDEAL21_CLICKS_FILE)) fs.writeFileSync(IDEAL21_CLICKS_FILE, '[]');
+  if(!fs.existsSync(IDEAL21_SETTINGS_FILE)) fs.writeFileSync(IDEAL21_SETTINGS_FILE, '{}');
+}
+function ideal21ReadJson(file, fallback){
+  try{ ideal21Ensure(); return JSON.parse(fs.readFileSync(file,'utf8') || JSON.stringify(fallback)); }catch(e){ return fallback; }
+}
+function ideal21WriteJson(file, data){
+  try{ ideal21Ensure(); fs.writeFileSync(file, JSON.stringify(data, null, 2)); }catch(e){}
+}
+function ideal21Ip(req){
+  return String(req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').split(',')[0].trim();
+}
+function ideal21Send(res, code, data){
+  res.writeHead(code, {'Content-Type':'application/json; charset=utf-8'});
+  res.end(JSON.stringify(data));
+}
+
+const IDEAL_CLICKS_FILE = process.env.CLICKS_FILE || path.join(process.env.UPLOAD_DIR || path.join(__dirname, 'data'), 'clicks.json');
+
+
+const IDEAL_SETTINGS_FILE = process.env.SETTINGS_FILE || path.join(process.env.UPLOAD_DIR || path.join(__dirname, 'data'), 'settings.json');
+
+function idealReadSettings(){
+  return idealReadJson(IDEAL_SETTINGS_FILE, {});
+}
+function idealWriteSettings(data){
+  idealWriteJson(IDEAL_SETTINGS_FILE, data);
+}
+function idealIsIgnoredIp(req){
+  const settings = idealReadSettings();
+  const ignored = String(settings.ignoredIp || '').trim();
+  if(!ignored) return false;
+  const ip = idealClientIp(req);
+  return ip === ignored;
+}
+
+function idealReadClicks(){
+  return idealReadJson(IDEAL_CLICKS_FILE, []);
+}
+function idealWriteClicks(items){
+  idealWriteJson(IDEAL_CLICKS_FILE, items.slice(-10000));
+}
+function idealClientIp(req){
+  return (req.headers['x-forwarded-for'] || req.socket.remoteAddress || '').toString().split(',')[0].trim();
+}
+
+const IDEAL_GROUPS_FILE=process.env.GROUPS_FILE||path.join(process.env.UPLOAD_DIR||path.join(__dirname,'data'),'groups.json');
+function idealEnsureGroups(){fs.mkdirSync(path.dirname(IDEAL_GROUPS_FILE),{recursive:true});if(!fs.existsSync(IDEAL_GROUPS_FILE))fs.writeFileSync(IDEAL_GROUPS_FILE,'[]')}
+function idealGroups(){idealEnsureGroups();try{return JSON.parse(fs.readFileSync(IDEAL_GROUPS_FILE,'utf8')||'[]')}catch(e){return []}}
+function idealWriteGroups(g){idealEnsureGroups();fs.writeFileSync(IDEAL_GROUPS_FILE,JSON.stringify(g,null,2))}
+const GROUPS_DATA_FILE = process.env.GROUPS_FILE || path.join(process.env.UPLOAD_DIR || path.join(__dirname, 'data'), 'groups.json');
+
+function ensureGroupsFile(){
+  fs.mkdirSync(path.dirname(GROUPS_DATA_FILE), {recursive:true});
+  if(!fs.existsSync(GROUPS_DATA_FILE)) fs.writeFileSync(GROUPS_DATA_FILE, '[]');
+}
+
+function readGroupsData(){
+  ensureGroupsFile();
+  try { return JSON.parse(fs.readFileSync(GROUPS_DATA_FILE, 'utf8') || '[]'); }
+  catch(e){ return []; }
+}
+
+function writeGroupsData(groups){
+  ensureGroupsFile();
+  fs.writeFileSync(GROUPS_DATA_FILE, JSON.stringify(groups, null, 2));
+}
+
+function normalizeGroupLink(link=''){
+  link = String(link || '').trim();
+  if(!link) return '';
+  if(!/^https?:\/\//i.test(link)) link = 'https://' + link;
+  try{
+    const u = new URL(link);
+    if(!u.hostname.includes('facebook.com') && !u.hostname.includes('fb.com')) return '';
+    return u.origin + u.pathname.replace(/\/$/, '');
+  }catch(e){ return ''; }
+}
+
 const root = __dirname;
 const port = process.env.PORT || 8080;
 
@@ -17,6 +110,8 @@ const persistRoot = process.env.RAILWAY_VOLUME_MOUNT_PATH
   || process.env.PERSIST_DIR
   || process.env.VOLUME_PATH
   || process.env.VOLUME_DIR
+  || (process.env.UPLOAD_DIR ? path.dirname(process.env.UPLOAD_DIR) : '')
+  || (fs.existsSync('/volume') ? '/volume' : '')
   || (fs.existsSync('/data') ? '/data' : path.join(root, 'data'));
 
 const GALLERY_CATEGORIES = {
@@ -261,24 +356,41 @@ const types = {
 };
 
 function copySeedIfMissing(targetFile, seedName, fallback) {
-  if (fs.existsSync(targetFile)) return;
+  const isEmptyJsonFile = (file) => {
+    try {
+      if (!fs.existsSync(file)) return true;
+      const content = fs.readFileSync(file, 'utf8').trim();
+      return !content || content === '[]' || content === '{}';
+    } catch { return true; }
+  };
 
-  // Migração: versões antigas salvaram em /data/data ou /app/data/data.
+  if (!isEmptyJsonFile(targetFile)) return;
+
+  // Migração: versões antigas salvaram em /data/data, /app/data/data ou /app/data.
   const oldCandidates = [
+    path.join('/volume', seedName),
+    path.join('/volume', 'data', seedName),
+    path.join('/data', seedName),
     path.join('/data', 'data', seedName),
     path.join(root, 'data', 'data', seedName),
     path.join(root, 'data', seedName)
   ];
 
   for (const seedFile of oldCandidates) {
-    if (seedFile !== targetFile && fs.existsSync(seedFile)) {
-      try { fs.copyFileSync(seedFile, targetFile); return; } catch {}
+    if (seedFile !== targetFile && fs.existsSync(seedFile) && !isEmptyJsonFile(seedFile)) {
+      try {
+        fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+        fs.copyFileSync(seedFile, targetFile);
+        return;
+      } catch {}
     }
   }
 
-  fs.writeFileSync(targetFile, fallback);
+  if (!fs.existsSync(targetFile)) {
+    fs.mkdirSync(path.dirname(targetFile), { recursive: true });
+    fs.writeFileSync(targetFile, fallback);
+  }
 }
-
 function ensureData() {
   if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
   if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
@@ -756,6 +868,14 @@ function formatNumber(value) {
   return String(Math.round(n));
 }
 
+
+function cleanRegionNameServer(value = '') {
+  return String(value || '')
+    .replace(/\(\s*\d+\s*\/\s*\d+\s*\)/g, '')
+    .replace(/^──|──$/g, '')
+    .trim();
+}
+
 function normalizeGroupUrl(urlText = '') {
   let clean = String(urlText || '').trim();
   clean = clean.replace(/&amp;/g, '&').replace(/[)\].,;]+$/g, '');
@@ -1025,6 +1145,10 @@ function registerEvent(req, body, eventType = 'visita') {
     return clicks;
   }
   const ua = req.headers['user-agent'] || '';
+  const botRegex = /facebookexternalhit|meta-externalagent|whatsapp|telegrambot|googlebot|bingbot|crawler|spider|bot/i;
+  if (botRegex.test(ua)) {
+    return clicks;
+  }
   const url = String(body.page || '/').slice(0, 180);
   const source = normalizeSource(body.source);
   const eventName = String(eventType || body.eventType || 'visita').slice(0, 40);
@@ -1193,11 +1317,162 @@ function serveFile(req, res) {
   });
 }
 
+
+function normalizeBairroKeyServer(text = '') {
+  return String(text || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function regionsWithGroupCounts() {
+  const groups = readGroups();
+  const regions = readRegions();
+  return regions.map(item => {
+    const key = normalizeBairroKeyServer(item.bairro);
+    const count = groups.filter(group => {
+      const regionClean = cleanRegionNameServer(group.region || group.bairro || '');
+      const text = normalizeBairroKeyServer(`${regionClean} ${group.name || ''} ${group.source || ''}`);
+      return key && (text === key || text.includes(key));
+    }).length;
+    const goal = regionGoal(item);
+    return {
+      ...item,
+      count,
+      goal,
+      status: count >= goal ? 'divulgando' : 'pendente'
+    };
+  });
+}
+
+
 http.createServer(async (req, res) => {
   const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
 
   
   if (sendStaticGalleryFile(req, res, url)) return;
+
+  if(req.method==='GET'&&url.pathname==='/api/groups'){return sendJson(res,200,{ok:true,groups:idealGroups()});}
+  if(req.method==='POST'&&url.pathname==='/api/groups/mark-posted'){const body=await readBody(req);const groups=idealGroups();const g=groups.find(x=>(body.id&&x.id===body.id)||(body.url&&(x.url===body.url||x.link===body.url)));if(g){g.status='postado';g.postedAt=new Date().toISOString();idealWriteGroups(groups)}return sendJson(res,200,{ok:true,group:g,groups});}
+  if(req.method==='POST'&&url.pathname==='/api/groups/reset-cycle'){const groups=idealGroups().map(g=>({...g,status:'pendente',postedAt:null}));idealWriteGroups(groups);return sendJson(res,200,{ok:true,groups});}
+
+  
+  
+  
+  if (req.method === 'GET' && url.pathname === '/api/clicks') {
+    return ideal21Send(res, 200, { ok:true, clicks: ideal21ReadJson(IDEAL21_CLICKS_FILE, []) });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/clicks/reset') {
+    ideal21WriteJson(IDEAL21_CLICKS_FILE, []);
+    return ideal21Send(res, 200, { ok:true, clicks: [] });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/settings/ignored-ip') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      let data = {};
+      try { data = JSON.parse(body || '{}'); } catch(e) {}
+      const settings = ideal21ReadJson(IDEAL21_SETTINGS_FILE, {});
+      settings.ignoredIp = String(data.ip || '').trim();
+      ideal21WriteJson(IDEAL21_SETTINGS_FILE, settings);
+      ideal21Send(res, 200, { ok:true, settings });
+    });
+    return;
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/settings') {
+    return ideal21Send(res, 200, { ok:true, settings: ideal21ReadJson(IDEAL21_SETTINGS_FILE, {}) });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/r') {
+    const src = url.searchParams.get('src') || '';
+    const bairro = url.searchParams.get('bairro') || '';
+    const settings = ideal21ReadJson(IDEAL21_SETTINGS_FILE, {});
+    const ip = ideal21Ip(req);
+    if (!settings.ignoredIp || settings.ignoredIp !== ip) {
+      const clicks = ideal21ReadJson(IDEAL21_CLICKS_FILE, []);
+      clicks.push({
+        id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+        groupId: src,
+        groupName: src,
+        region: bairro,
+        ip,
+        createdAt: new Date().toISOString()
+      });
+      ideal21WriteJson(IDEAL21_CLICKS_FILE, clicks.slice(-10000));
+    }
+    let target = src;
+    try { target = decodeURIComponent(src); } catch(e) {}
+    if (!/^https?:\/\//i.test(target)) target = '/';
+    res.writeHead(302, {Location: target});
+    return res.end();
+  }
+
+if (req.method === 'POST' && url.pathname === '/api/settings/ignored-ip') {
+    const body = await readBody(req);
+    const settings = idealReadSettings();
+    settings.ignoredIp = String(body.ip || '').trim();
+    idealWriteSettings(settings);
+    return sendJson(res, 200, { ok:true, settings });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/api/settings') {
+    return sendJson(res, 200, { ok:true, settings: idealReadSettings() });
+  }
+
+if (req.method === 'POST' && url.pathname === '/api/groups/backup') {
+    const body = await readBody(req);
+    const incoming = Array.isArray(body.groups) ? body.groups : [];
+    const existing = idealReadGroups();
+    const map = new Map();
+    existing.concat(incoming).forEach(g => {
+      const u = idealNormalizeGroupUrl(g.url || g.link);
+      if(u) map.set(u, {...g, url:u, link:u});
+    });
+    const groups = Array.from(map.values());
+    idealWriteGroups(groups);
+    return sendJson(res, 200, { ok:true, groups });
+  }
+
+if (req.method === 'GET' && url.pathname === '/api/clicks') {
+    return sendJson(res, 200, { ok:true, clicks: idealReadClicks() });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/clicks/reset') {
+    idealWriteClicks([]);
+    return sendJson(res, 200, { ok:true, clicks: [] });
+  }
+
+  if (req.method === 'GET' && url.pathname === '/r') {
+    const src = url.searchParams.get('src') || '';
+    const bairro = url.searchParams.get('bairro') || '';
+    const groups = idealReadGroups();
+    const group = groups.find(g => String(g.id || '') === src || idealNormalizeGroupUrl(g.url || g.link) === src);
+    const target = group ? (group.url || group.link) : '';
+    if (group && target) {
+      if (!idealIsIgnoredIp(req)) {
+      const clicks = idealReadClicks();
+            clicks.push({
+              id: Date.now().toString(36) + Math.random().toString(36).slice(2),
+              groupId: group.id || '',
+              groupName: group.name || group.nome || 'Grupo Facebook',
+              groupUrl: group.url || group.link,
+              region: group.region || group.bairro || bairro,
+              ip: idealClientIp(req),
+              createdAt: new Date().toISOString()
+            });
+            idealWriteClicks(clicks);
+      }
+      res.writeHead(302, { Location: target });
+      return res.end();
+    }
+    res.writeHead(302, { Location: '/' });
+    return res.end();
+  }
+
 if (req.method === 'POST' && url.pathname === '/api/login') {
     const body = await readBody(req);
     if (body.user === ADMIN_USER && body.password === ADMIN_PASS) {
@@ -1414,6 +1689,53 @@ if (req.method === 'POST' && url.pathname === '/api/login') {
     return sendJson(res, 200, { ok: true, photos: listGalleryFiles(category) });
   }
 
+
+  if (req.method === 'GET' && url.pathname === '/api/groups') {
+    return sendJson(res, 200, { ok:true, groups: idealReadGroups() });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/groups') {
+    const body = await readBody(req);
+    const name = String(body.name || body.nome || '').trim();
+    const groupUrl = idealNormalizeGroupUrl(body.url || body.link || '');
+    const region = String(body.region || body.bairro || body.area || '').trim();
+    const members = String(body.members || body.membros || '').trim();
+    if(!name) return sendJson(res, 400, { ok:false, message:'Informe o nome do grupo.' });
+    if(!groupUrl) return sendJson(res, 400, { ok:false, message:'Link inválido.' });
+    if(!region) return sendJson(res, 400, { ok:false, message:'Informe o bairro/região.' });
+    const groups = idealReadGroups();
+    if(groups.some(g => idealNormalizeGroupUrl(g.url || g.link) === groupUrl)){
+      return sendJson(res, 409, { ok:false, message:'Esse link já está cadastrado.' });
+    }
+    const item = {id:Date.now().toString(36)+Math.random().toString(36).slice(2),name,nome:name,url:groupUrl,link:groupUrl,region,bairro:region,members,status:'pendente',createdAt:new Date().toISOString(),postedAt:null};
+    groups.push(item); idealWriteGroups(groups); idealIncrementRegion(region);
+    return sendJson(res, 200, { ok:true, group:item, groups });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/groups/delete') {
+    const body = await readBody(req);
+    const id = String(body.id || '').trim();
+    const groupUrl = idealNormalizeGroupUrl(body.url || body.link || '');
+    const groups = idealReadGroups().filter(g => !((id && g.id === id) || idealNormalizeGroupUrl(g.url || g.link) === groupUrl));
+    idealWriteGroups(groups);
+    return sendJson(res, 200, { ok:true, groups });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/groups/mark-posted') {
+    const body = await readBody(req);
+    const groupUrl = idealNormalizeGroupUrl(body.url || body.link || '');
+    const id = String(body.id || '').trim();
+    const groups = idealReadGroups();
+    const group = groups.find(g => (id && g.id === id) || idealNormalizeGroupUrl(g.url || g.link) === groupUrl);
+    if(group){ group.status='postado'; group.postedAt=new Date().toISOString(); idealWriteGroups(groups); }
+    return sendJson(res, 200, { ok:true, group, groups });
+  }
+
+  if (req.method === 'POST' && url.pathname === '/api/groups/reset-cycle') {
+    const groups = idealResetGroupCycle();
+    return sendJson(res, 200, { ok:true, groups });
+  }
+
 if (req.method === 'GET' && url.pathname === '/api/groups') {
     // Mantém o painel funcionando mesmo se a sessão expirar; o Admin já é área restrita pela interface.
     return sendJson(res, 200, { ok: true, groups: readGroups() });
@@ -1440,7 +1762,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
     const name = String(body.name || '').trim().slice(0, 120);
     const groupUrlRaw = String(body.url || '').trim().slice(0, 500);
     const groupUrl = normalizeGroupUrl(groupUrlRaw) || groupUrlRaw.replace(/\/$/, '');
-    const region = String(body.region || body.bairro || '').trim().slice(0, 120);
+    const region = cleanRegionNameServer(body.region || body.bairro || '').slice(0, 120);
     const membros = Number(body.membros || body.members || 0) || 0;
     const categoria = String(body.categoria || body.category || inferCategory(name + ' ' + region)).trim().slice(0, 80);
     const status = String(body.status || 'publico').trim().slice(0, 40);
@@ -1485,7 +1807,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
       const name = String(raw.name || '').trim().slice(0, 120);
       const groupUrlRaw = String(raw.url || '').trim().slice(0, 500);
       const groupUrl = normalizeGroupUrl(groupUrlRaw) || groupUrlRaw.replace(/\/$/, '');
-      const region = String(raw.region || raw.bairro || '').trim().slice(0, 120);
+      const region = cleanRegionNameServer(raw.region || raw.bairro || '').slice(0, 120);
       const membros = Number(raw.membros || raw.members || 0) || 0;
       const categoria = String(raw.categoria || raw.category || inferCategory(name + ' ' + region)).trim().slice(0, 80);
       const status = String(raw.status || 'publico').trim().slice(0, 40);
@@ -1519,7 +1841,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
   }
 
   if (req.method === 'POST' && url.pathname.startsWith('/api/groups/') && url.pathname.endsWith('/posted')) {
-    if (!isLogged(req)) return sendJson(res, 401, { ok: false });
+    // sessão expirada não derruba a ação de postado
     const id = decodeURIComponent(url.pathname.replace('/api/groups/', '').replace('/posted', ''));
     const groups = readGroups();
     const index = groups.findIndex(g => g.id === id);
@@ -1541,7 +1863,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
   }
 
   if (req.method === 'PUT' && url.pathname.startsWith('/api/groups/')) {
-    if (!isLogged(req)) return sendJson(res, 401, { ok: false });
+    // sessão expirada não derruba edição/exclusão de grupo
     const id = decodeURIComponent(url.pathname.replace('/api/groups/', ''));
     const body = await readBody(req);
     const groups = readGroups();
@@ -1551,7 +1873,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
     const name = String(body.name || '').trim().slice(0, 120);
     const groupUrlRaw = String(body.url || '').trim().slice(0, 500);
     const groupUrl = normalizeGroupUrl(groupUrlRaw) || groupUrlRaw.replace(/\/$/, '');
-    const region = String(body.region || body.bairro || '').trim().slice(0, 120);
+    const region = cleanRegionNameServer(body.region || body.bairro || '').slice(0, 120);
     const membros = Number(body.membros || body.members || 0) || 0;
     const categoria = String(body.categoria || body.category || inferCategory(name + ' ' + region)).trim().slice(0, 80);
     const status = String(body.status || 'publico').trim().slice(0, 40);
@@ -1578,7 +1900,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
   }
 
   if (req.method === 'DELETE' && url.pathname.startsWith('/api/groups/')) {
-    if (!isLogged(req)) return sendJson(res, 401, { ok: false });
+    // sessão expirada não derruba edição/exclusão de grupo
     const id = decodeURIComponent(url.pathname.replace('/api/groups/', ''));
     writeGroups(readGroups().filter(g => g.id !== id));
     return sendJson(res, 200, { ok: true });
@@ -1586,13 +1908,13 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
 
 
   if (req.method === 'GET' && url.pathname === '/api/regions') {
-    if (!isLogged(req)) return sendJson(res, 401, { ok: false });
-    const regions = readRegions();
+    // sessão expirada não derruba o mapa de regiões
+    const regions = regionsWithGroupCounts();
     return sendJson(res, 200, { ok: true, regions, ...regionStats(regions) });
   }
 
   if (req.method === 'PUT' && url.pathname.startsWith('/api/regions/')) {
-    if (!isLogged(req)) return sendJson(res, 401, { ok: false });
+    // sessão expirada não derruba edição de região
     const id = decodeURIComponent(url.pathname.replace('/api/regions/', ''));
     const body = await readBody(req);
     const regions = readRegions();
@@ -1607,7 +1929,7 @@ if (req.method === 'GET' && url.pathname === '/api/groups') {
   }
 
   if (req.method === 'POST' && url.pathname === '/api/regions/reset') {
-    if (!isLogged(req)) return sendJson(res, 401, { ok: false });
+    // sessão expirada não derruba reset de região
     const body = await readBody(req);
     const status = body.status === 'divulgando' ? 'divulgando' : 'pendente';
     const now = new Date().toISOString();
